@@ -1,0 +1,4 @@
+- Find out which order (expected, actual) vs (actual, expected) the tests should be presented in.
+- Add support for file-globbing for input
+- Make strategies more general purpose
+  - 
