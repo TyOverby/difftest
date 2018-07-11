@@ -1,16 +1,23 @@
+#[cfg(test)]
 use std::cell::RefCell;
+#[cfg(test)]
 use std::collections::HashMap;
-use std::fs::{create_dir_all, read, write};
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
-use std::path::{Path, PathBuf};
+#[cfg(test)]
+use std::io::{Error as IoError, ErrorKind};
+#[cfg(test)]
 use std::rc::Rc;
+
+use std::io::Result as IoResult;
+use std::fs::{create_dir_all, read, write};
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct RealFileSystem {
-    root: PathBuf,
+    pub root: PathBuf,
 }
 
 #[derive(Clone, Debug)]
+#[cfg(test)]
 pub struct FakeFileSystem {
     root: PathBuf,
     mapping: Rc<RefCell<HashMap<PathBuf, Vec<u8>>>>,
@@ -24,6 +31,7 @@ pub trait FileSystem: Clone {
     fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf;
 }
 
+#[cfg(test)]
 impl FakeFileSystem {
     pub fn new() -> Self {
         FakeFileSystem {
@@ -54,9 +62,8 @@ impl FileSystem for RealFileSystem {
 
     fn write<P: AsRef<Path>>(&mut self, path: P, contents: &[u8]) -> IoResult<()> {
         assert!(path.as_ref().is_relative(), "path must be relative");
-        let mut path = self.root.join(path);
-        path.pop();
-        create_dir_all(&path)?;
+        let path = self.root.join(path);
+        create_dir_all(path.parent().unwrap())?;
         write(path, contents)
     }
 
@@ -65,6 +72,7 @@ impl FileSystem for RealFileSystem {
     }
 }
 
+#[cfg(test)]
 impl FileSystem for FakeFileSystem {
     fn subsystem<P: AsRef<Path>>(&self, path: P) -> Self {
         let mut new = self.clone();

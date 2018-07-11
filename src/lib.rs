@@ -1,9 +1,10 @@
-mod filesystem;
 pub mod diff;
+mod filesystem;
 
 #[cfg(test)]
 use filesystem::FakeFileSystem;
 use filesystem::FileSystem;
+use filesystem::RealFileSystem;
 use std::path::PathBuf;
 
 type ComputeFunction = Fn(Vec<u8>) -> Vec<(PathBuf, Vec<u8>)> + 'static;
@@ -73,7 +74,11 @@ impl TestSuite {
         }
     }
 
-    fn run<F: FileSystem>(self, fs: &mut F) -> Vec<TestResult> {
+    pub fn run(self, root: &str) -> Vec<TestResult> {
+        self.run_test(&mut RealFileSystem { root: root.into() })
+    }
+
+    fn run_test<F: FileSystem>(self, fs: &mut F) -> Vec<TestResult> {
         let mut test_results = vec![];
         let input_subsystem = fs.subsystem("input");
         let actual_subsystem = fs.subsystem("actual");
@@ -167,7 +172,7 @@ fn simple_copy() {
         .with_strategy(compute, |a, b| a == b, |_, _| unimplemented!())
         .input("aa.txt")
         .build();
-    let results = suite.run(&mut fs);
+    let results = suite.run_test(&mut fs);
 
     assert_eq!(
         results,
@@ -204,7 +209,7 @@ fn diff_function_works() {
         .input("aa.txt")
         .build();
 
-    let results = suite.run(&mut fs);
+    let results = suite.run_test(&mut fs);
     assert_eq!(
         results,
         vec![TestResult::Bad {
