@@ -7,8 +7,8 @@ use std::io::{Error as IoError, ErrorKind};
 #[cfg(test)]
 use std::rc::Rc;
 
-use std::io::Result as IoResult;
-use std::fs::{create_dir_all, read, write};
+use std::fs::{create_dir_all, File};
+use std::io::{Read, Result as IoResult, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
@@ -26,8 +26,16 @@ pub struct FakeFileSystem {
 pub trait FileSystem: Clone {
     fn subsystem<P: AsRef<Path>>(&self, path: P) -> Self;
     fn exists<P: AsRef<Path>>(&self, path: P) -> bool;
-    fn read<P: AsRef<Path>>(&self, path: P) -> IoResult<Vec<u8>>;
-    fn write<P: AsRef<Path>>(&mut self, path: P, contents: &[u8]) -> IoResult<()>;
+    fn read<P: AsRef<Path>, F: FnOnce(&mut Read) -> IoResult<R>, R>(
+        &self,
+        path: P,
+        f: F,
+    ) -> IoResult<R>;
+    fn write<P: AsRef<Path>, F: FnOnce(&mut Write) -> IoResult<()>>(
+        &mut self,
+        path: P,
+        f: F,
+    ) -> IoResult<()>;
     fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf;
 }
 
@@ -54,17 +62,32 @@ impl FileSystem for RealFileSystem {
         path.exists()
     }
 
-    fn read<P: AsRef<Path>>(&self, path: P) -> IoResult<Vec<u8>> {
+    fn read<P: AsRef<Path>, F: FnOnce(&mut Read) -> IoResult<R>, R>(
+        &self,
+        path: P,
+        f: F,
+    ) -> IoResult<R> {
         assert!(path.as_ref().is_relative(), "path must be relative");
         let path = self.root.join(path);
-        read(path)
+        match File::open(path) {
+            Ok(mut file) => f(&mut file),
+            Err(e) => Err(e),
+        }
     }
 
-    fn write<P: AsRef<Path>>(&mut self, path: P, contents: &[u8]) -> IoResult<()> {
+    fn write<P: AsRef<Path>, F: FnOnce(&mut Write) -> IoResult<()>>(
+        &mut self,
+        path: P,
+        f: F,
+    ) -> IoResult<()> {
         assert!(path.as_ref().is_relative(), "path must be relative");
         let path = self.root.join(path);
         create_dir_all(path.parent().unwrap())?;
-        write(path, contents)
+
+        match File::create(path) {
+            Ok(mut file) => f(&mut file),
+            Err(e) => Err(e),
+        }
     }
 
     fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf {
@@ -86,11 +109,16 @@ impl FileSystem for FakeFileSystem {
         self.mapping.borrow().contains_key(&path)
     }
 
-    fn read<P: AsRef<Path>>(&self, path: P) -> IoResult<Vec<u8>> {
+    fn read<P: AsRef<Path>, F: FnOnce(&mut Read) -> IoResult<R>, R>(
+        &self,
+        path: P,
+        f: F,
+    ) -> IoResult<R> {
         assert!(path.as_ref().is_relative(), "path must be relative");
         let path = self.root.join(path);
+
         match self.mapping.borrow().get(&path) {
-            Some(contents) => Ok(contents.clone()),
+            Some(contents) => f(&mut &contents[..]),
             None => Err(IoError::new(
                 ErrorKind::NotFound,
                 format!("{:?} does not exist", path),
@@ -98,10 +126,18 @@ impl FileSystem for FakeFileSystem {
         }
     }
 
-    fn write<P: AsRef<Path>>(&mut self, path: P, contents: &[u8]) -> IoResult<()> {
+    fn write<P: AsRef<Path>, F: FnOnce(&mut Write) -> IoResult<()>>(
+        &mut self,
+        path: P,
+        f: F,
+    ) -> IoResult<()> {
         assert!(path.as_ref().is_relative(), "path must be relative");
         let path = self.root.join(path);
-        self.mapping.borrow_mut().insert(path, contents.to_owned());
+
+        let mut contents = vec![];
+        f(&mut contents)?;
+
+        self.mapping.borrow_mut().insert(path, contents);
         Ok(())
     }
 
