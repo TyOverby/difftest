@@ -1,22 +1,41 @@
 use std::io::{Read, Result as IoResult, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::filesystem::FileSystem;
 
 /*
-
 difftest("test-name", |provider| {
     let writer = provider.custom_test("foo.txt", |a, b| texteq, |a, b| textdiff);
 });
-
 */
 
+pub struct WriteRequester<F: FileSystem> {
+    pub(crate) fs: F,
+    pub(crate) files: Vec<PathBuf>,
+}
+
+impl<F: FileSystem> WriteRequester<F> {
+    pub fn request<S, Fn>(&mut self, path: S, f: Fn) -> IoResult<()>
+    where
+        S: AsRef<Path>,
+        Fn: for<'a> FnOnce(&'a mut Write) -> IoResult<()>,
+    {
+        self.files.push(self.fs.full_path_for(&path));
+        self.fs.write(path, f)
+    }
+}
+
 pub struct Provider<F: FileSystem> {
-    fs: F,
-    files: Vec<(
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) root_fs: F,
+    pub(crate) fs: F,
+    pub(crate) files: Vec<(
         PathBuf,
-        Box<for<'a> Fn(&'a mut Read, &'a mut Read) -> bool>,
-        Box<for<'b> Fn(&'b mut Read, &'b mut Read, &'b mut Write)>,
+        Box<for<'a> Fn(&'a mut Read, &'a mut Read) -> IoResult<bool>>,
+        Box<
+            for<'b> Fn(&'b mut Read, &'b mut Read, &'b Path, &'b mut WriteRequester<F>)
+                -> IoResult<()>,
+        >,
     )>,
 }
 
@@ -27,8 +46,12 @@ struct Writer<F: FileSystem> {
 }
 
 impl<F: FileSystem> Provider<F> {
-    pub fn new(fs: F) -> Provider<F> {
-        Provider { fs, files: vec![] }
+    pub fn new(root_fs: F, fs: F) -> Provider<F> {
+        Provider {
+            root_fs,
+            fs,
+            files: vec![],
+        }
     }
 }
 
@@ -52,11 +75,13 @@ impl<F: FileSystem> Drop for Writer<F> {
 }
 
 impl<F: FileSystem> Provider<F> {
-    fn custom_test<'x, S, C, D>(&'x mut self, name: S, compare: C, diff: D) -> impl Write + 'x
+    pub fn custom_test<'x, S, C, D>(&'x mut self, name: S, compare: C, diff: D) -> impl Write + 'x
     where
         S: Into<PathBuf>,
-        C: for<'a> Fn(&'a mut Read, &'a mut Read) -> bool + 'static,
-        D: for<'b> Fn(&'b mut Read, &'b mut Read, &'b mut Write) + 'static,
+        C: for<'a> Fn(&'a mut Read, &'a mut Read) -> IoResult<bool> + 'static,
+        D: for<'b> Fn(&'b mut Read, &'b mut Read, &'b Path, &'b mut WriteRequester<F>)
+                -> IoResult<()>
+            + 'static,
     {
         let name = name.into();
         self.files
