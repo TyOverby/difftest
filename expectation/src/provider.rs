@@ -3,12 +3,6 @@ use std::path::{Path, PathBuf};
 
 use super::filesystem::FileSystem;
 
-/*
-difftest("test-name", |provider| {
-    let writer = provider.custom_test("foo.txt", |a, b| texteq, |a, b| textdiff);
-});
-*/
-
 pub struct WriteRequester<F: FileSystem> {
     pub(crate) fs: F,
     pub(crate) files: Vec<PathBuf>,
