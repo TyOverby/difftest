@@ -1,4 +1,5 @@
 use super::*;
+use super::extensions::*;
 use std::io::{Read, Result as IoResult};
 
 fn byte_for_byte_equality<R1: Read, R2: Read>(mut r1: R1, mut r2: R2) -> IoResult<bool> {
@@ -159,8 +160,7 @@ fn validate_one_file_actual_not_found() {
             .root_fs
             .write("expected/hi/something_else.txt", |writer| {
                 write!(writer, "not found")
-            })
-            .unwrap();
+            }).unwrap();
 
         let mut w = provider.custom_test(
             "foo.txt",
@@ -193,8 +193,7 @@ fn validate_one_file_diff_is_bad() {
             .root_fs
             .write("expected/hi/foo.txt", |writer| {
                 write!(writer, "goodbye found")
-            })
-            .unwrap();
+            }).unwrap();
 
         let mut w = provider.custom_test(
             "foo.txt",
@@ -209,7 +208,31 @@ fn validate_one_file_diff_is_bad() {
         vec![Result::Difference(Tripple {
             actual: "/actual/hi/foo.txt".into(),
             expected: "/expected/hi/foo.txt".into(),
-            diffs: vec!["/diff/hi/foo.txt".into()],
+            diffs: vec!["/diff/hi/foo.txt.diff".into()],
+        })]
+    );
+}
+
+#[test]
+fn validate_one_file_diff_is_bad_with_text_extension() {
+    use std::io::Write;
+    let results = difftest_validate("hi", |provider| {
+        provider
+            .root_fs
+            .write("expected/hi/foo.txt", |writer| {
+                write!(writer, "goodbye found")
+            }).unwrap();
+
+        let mut w = provider.text_writer("foo.txt");
+        write!(w, "hello world").unwrap();
+    });
+
+    assert_eq!(
+        results,
+        vec![Result::Difference(Tripple {
+            actual: "/actual/hi/foo.txt".into(),
+            expected: "/expected/hi/foo.txt".into(),
+            diffs: vec!["/diff/hi/foo.txt.diff".into()],
         })]
     );
 }

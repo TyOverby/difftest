@@ -90,7 +90,7 @@ fn wrap_item(
     item: &ast::Item,
     inner_ident: P<ast::Expr>,
 ) -> Annotatable {
-    let new_name_str = "__expect_".to_string() + &item.ident.as_str();
+    let new_name_str = "expect__".to_string() + &item.ident.as_str();
     let new_name = ast::Ident::from_str(&new_name_str);
 
     // Copy original function without attributes

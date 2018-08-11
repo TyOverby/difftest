@@ -1,5 +1,9 @@
 extern crate walkdir;
 
+#[cfg(feature = "text")]
+extern crate diff;
+
+pub mod extensions;
 mod filesystem;
 mod provider;
 #[cfg(test)]
@@ -9,6 +13,8 @@ use filesystem::*;
 use std::collections::HashSet;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
+
+pub use provider::Writer;
 
 pub type WriteRequester = provider::WriteRequester<RealFileSystem>;
 
@@ -53,10 +59,55 @@ impl PartialEq for Result {
 }
 
 pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
-    let top_fs = RealFileSystem { root: "f".into() };
+    let top_fs = RealFileSystem {
+        root: "./expectation-tests".into(),
+    };
     let act_fs = top_fs.subsystem("actual").subsystem(name);
-    let mut provider = Provider::new(top_fs, act_fs);
+    let mut provider = Provider::new(top_fs.clone(), act_fs);
     f(&mut provider);
+
+    let mut succeeded = true;
+    let results = validate(name, top_fs, provider, |_| true);
+    for result in results {
+        match result {
+            Result::Ok(_) => {}
+            Result::ActualNotFound(double) => {
+                println!("\"Actual\" file not found");
+                println!("  expected          {}", double.expected.to_string_lossy());
+                println!("  actual (missing)  {}", double.actual.to_string_lossy());
+                succeeded = false;
+            }
+            Result::ExpectedNotFound(double) => {
+                println!("\"Expected\" file not found");
+                println!(
+                    "  expected (missing)  {}",
+                    double.expected.to_string_lossy()
+                );
+                println!("  actual              {}", double.actual.to_string_lossy());
+                succeeded = false;
+            }
+            Result::Difference(tripple) => {
+                println!("Files differ");
+                println!("  expected  {}", tripple.expected.to_string_lossy());
+                println!("  actual    {}", tripple.actual.to_string_lossy());
+                match tripple.diffs.len() {
+                    0 => {}
+                    1 => println!("  diff      {}", tripple.diffs[0].to_string_lossy()),
+                    _ => {
+                        println!("  diffs");
+                        for diff in tripple.diffs {
+                            println!("    {}", diff.to_string_lossy());
+                        }
+                    }
+                }
+                succeeded = false;
+            }
+            _ => {}
+        }
+    }
+    if !succeeded {
+        panic!("Expectation test found some errors.");
+    }
 }
 
 pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(

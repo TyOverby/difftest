@@ -33,7 +33,7 @@ pub struct Provider<F: FileSystem> {
     )>,
 }
 
-struct Writer<F: FileSystem> {
+pub struct Writer<F: FileSystem> {
     inner: Vec<u8>,
     filesystem: F,
     path: PathBuf,
@@ -63,21 +63,22 @@ impl<F: FileSystem> Drop for Writer<F> {
         let mut contents = Vec::new();
         ::std::mem::swap(&mut contents, &mut self.inner);
         // TODO: maybe don't ignore?
-        let _ = self.filesystem
+        let _ = self
+            .filesystem
             .write(&self.path, |w| w.write_all(&contents));
     }
 }
 
 impl<F: FileSystem> Provider<F> {
-    pub fn custom_test<'x, S, C, D>(&'x mut self, name: S, compare: C, diff: D) -> impl Write + 'x
+    pub fn custom_test<S, C, D>(&mut self, name: S, compare: C, diff: D) -> Writer<F>
     where
-        S: Into<PathBuf>,
+        S: AsRef<Path>,
         C: for<'a> Fn(&'a mut Read, &'a mut Read) -> IoResult<bool> + 'static,
         D: for<'b> Fn(&'b mut Read, &'b mut Read, &'b Path, &'b mut WriteRequester<F>)
                 -> IoResult<()>
             + 'static,
     {
-        let name = name.into();
+        let name: PathBuf = name.as_ref().into();
         self.files
             .push((name.clone(), Box::new(compare), Box::new(diff)));
         Writer {
