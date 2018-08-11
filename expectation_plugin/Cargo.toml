@@ -1,6 +1,0 @@
-[package]
-name = "difftest_plugin"
-version = "0.1.0"
-authors = ["Ty Overby <ty@pre-alpha.com>"]
-
-[dependencies]

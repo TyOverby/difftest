@@ -1,0 +1,11 @@
+[package]
+name = "example"
+version = "0.1.0"
+authors = ["Ty Overby <ty@pre-alpha.com>"]
+
+[dependencies.expectation]
+path = "../expectation"
+
+[dependencies.expectation_plugin]
+path = "../expectation-plugin"
+

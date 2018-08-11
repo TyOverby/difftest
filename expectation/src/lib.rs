@@ -52,7 +52,7 @@ impl PartialEq for Result {
     }
 }
 
-pub fn difftest<F: FnOnce(&mut Provider)>(name: &str, f: F) {
+pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     let top_fs = RealFileSystem { root: "f".into() };
     let act_fs = top_fs.subsystem("actual").subsystem(name);
     let mut provider = Provider::new(top_fs, act_fs);
