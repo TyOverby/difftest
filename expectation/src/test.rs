@@ -1,5 +1,6 @@
-use super::*;
 use super::extensions::*;
+use super::*;
+use expectation_shared::Result as EResult;
 use std::io::{Read, Result as IoResult};
 
 fn byte_for_byte_equality<R1: Read, R2: Read>(mut r1: R1, mut r2: R2) -> IoResult<bool> {
@@ -48,7 +49,7 @@ pub fn difftest_prepare<F: FnOnce(&mut FakeProvider)>(name: &str, f: F) -> FakeF
 }
 
 #[cfg(test)]
-pub fn difftest_validate<F: FnOnce(&mut FakeProvider)>(name: &str, f: F) -> Vec<Result> {
+pub fn difftest_validate<F: FnOnce(&mut FakeProvider)>(name: &str, f: F) -> Vec<EResult> {
     let top_fs = filesystem::FakeFileSystem::new();
     let mut provider =
         provider::Provider::new(top_fs.clone(), top_fs.subsystem("actual").subsystem(name));
@@ -145,10 +146,12 @@ fn validate_one_file_expected_not_found() {
 
     assert_eq!(
         results,
-        vec![Result::ExpectedNotFound(Double {
-            actual: "/actual/hi/foo.txt".into(),
-            expected: "/expected/hi/foo.txt".into(),
-        })]
+        vec![EResult::expected_not_found(
+            "hi",
+            "foo.txt",
+            "/actual/hi/foo.txt",
+            "/expected/hi/foo.txt",
+        )]
     );
 }
 
@@ -173,14 +176,18 @@ fn validate_one_file_actual_not_found() {
     assert_eq!(
         results,
         vec![
-            Result::ExpectedNotFound(Double {
-                actual: "/actual/hi/foo.txt".into(),
-                expected: "/expected/hi/foo.txt".into(),
-            }),
-            Result::ActualNotFound(Double {
-                actual: "/actual/hi/something_else.txt".into(),
-                expected: "/expected/hi/something_else.txt".into(),
-            }),
+            EResult::expected_not_found(
+                "hi",
+                "foo.txt",
+                "/actual/hi/foo.txt",
+                "/expected/hi/foo.txt",
+            ),
+            EResult::actual_not_found(
+                "hi",
+                "something_else.txt",
+                "/actual/hi/something_else.txt",
+                "/expected/hi/something_else.txt",
+            ),
         ]
     );
 }
@@ -205,11 +212,12 @@ fn validate_one_file_diff_is_bad() {
 
     assert_eq!(
         results,
-        vec![Result::Difference(Tripple {
-            actual: "/actual/hi/foo.txt".into(),
-            expected: "/expected/hi/foo.txt".into(),
-            diffs: vec!["/diff/hi/foo.txt.diff".into()],
-        })]
+        vec![EResult::difference(
+            "hi", "foo.txt",
+            "/actual/hi/foo.txt",
+            "/expected/hi/foo.txt",
+            vec!["/diff/hi/foo.txt.diff".into()],
+        )]
     );
 }
 
@@ -229,10 +237,11 @@ fn validate_one_file_diff_is_bad_with_text_extension() {
 
     assert_eq!(
         results,
-        vec![Result::Difference(Tripple {
-            actual: "/actual/hi/foo.txt".into(),
-            expected: "/expected/hi/foo.txt".into(),
-            diffs: vec!["/diff/hi/foo.txt.diff".into()],
-        })]
+        vec![EResult::difference(
+            "hi", "foo.txt",
+            "/actual/hi/foo.txt",
+            "/expected/hi/foo.txt",
+            vec!["/diff/hi/foo.txt.diff".into()],
+        )]
     );
 }

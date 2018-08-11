@@ -1,0 +1,8 @@
+[package]
+name = "expectation-shared"
+version = "0.1.0"
+authors = ["Ty Overby <ty@pre-alpha.com>"]
+
+[dependencies]
+serde = "1.*.*"
+serde_derive = "1.*.*"

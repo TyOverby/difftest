@@ -16,3 +16,6 @@ walkdir = "2.2.0"
 [dependencies.diff]
 version = "0.1.*"
 optional = true
+
+[dependencies.expectation-shared]
+path = "../expectation-shared"

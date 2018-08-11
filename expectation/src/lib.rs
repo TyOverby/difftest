@@ -1,3 +1,4 @@
+extern crate expectation_shared;
 extern crate walkdir;
 
 #[cfg(feature = "text")]
@@ -9,9 +10,9 @@ mod provider;
 #[cfg(test)]
 mod test;
 
+use expectation_shared::{Result as EResult, ResultKind};
 use filesystem::*;
 use std::collections::HashSet;
-use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 
 pub use provider::Writer;
@@ -21,42 +22,6 @@ pub type WriteRequester = provider::WriteRequester<RealFileSystem>;
 pub type Provider = provider::Provider<RealFileSystem>;
 #[cfg(test)]
 type FakeProvider = provider::Provider<FakeFileSystem>;
-
-#[derive(Debug, PartialEq)]
-pub struct Double {
-    actual: PathBuf,
-    expected: PathBuf,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Tripple {
-    actual: PathBuf,
-    expected: PathBuf,
-    diffs: Vec<PathBuf>,
-}
-
-#[derive(Debug)]
-pub enum Result {
-    Ok(Double),
-    ExpectedNotFound(Double),
-    ActualNotFound(Double),
-    Difference(Tripple),
-    IoError(IoError),
-}
-
-impl PartialEq for Result {
-    fn eq(&self, other: &Self) -> bool {
-        use Result::*;
-        match (self, other) {
-            (Ok(a), Ok(b)) => a == b,
-            (ExpectedNotFound(a), ExpectedNotFound(b)) => a == b,
-            (ActualNotFound(a), ActualNotFound(b)) => a == b,
-            (Difference(a), Difference(b)) => a == b,
-            (IoError(_), IoError(_)) => false,
-            _ => false,
-        }
-    }
-}
 
 pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     let top_fs = RealFileSystem {
@@ -69,15 +34,15 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     let mut succeeded = true;
     let results = validate(name, top_fs, provider, |_| true);
     for result in results {
-        match result {
-            Result::Ok(_) => {}
-            Result::ActualNotFound(double) => {
+        match result.kind {
+            ResultKind::Ok => {}
+            ResultKind::ActualNotFound(double) => {
                 println!("\"Actual\" file not found");
                 println!("  expected          {}", double.expected.to_string_lossy());
                 println!("  actual (missing)  {}", double.actual.to_string_lossy());
                 succeeded = false;
             }
-            Result::ExpectedNotFound(double) => {
+            ResultKind::ExpectedNotFound(double) => {
                 println!("\"Expected\" file not found");
                 println!(
                     "  expected (missing)  {}",
@@ -86,7 +51,7 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
                 println!("  actual              {}", double.actual.to_string_lossy());
                 succeeded = false;
             }
-            Result::Difference(tripple) => {
+            ResultKind::Difference(tripple) => {
                 println!("Files differ");
                 println!("  expected  {}", tripple.expected.to_string_lossy());
                 println!("  actual    {}", tripple.actual.to_string_lossy());
@@ -115,7 +80,7 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
     fs: F,
     provider: provider::Provider<F>,
     filter: Fi,
-) -> Vec<Result> {
+) -> Vec<EResult> {
     let mut visited = HashSet::new();
     let mut out = Vec::new();
 
@@ -133,18 +98,20 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
         visited.insert(file.clone());
 
         if !actual_fs.exists(&file) {
-            out.push(Result::ActualNotFound(Double {
-                actual: actual_fs.full_path_for(&file),
-                expected: expected_fs.full_path_for(&file),
-            }));
+            out.push(EResult::actual_not_found(
+                name, &file,
+                actual_fs.full_path_for(&file),
+                expected_fs.full_path_for(&file),
+            ));
             continue;
         }
 
         if !expected_fs.exists(&file) {
-            out.push(Result::ExpectedNotFound(Double {
-                actual: actual_fs.full_path_for(&file),
-                expected: expected_fs.full_path_for(&file),
-            }));
+            out.push(EResult::expected_not_found(
+                name, &file,
+                actual_fs.full_path_for(&file),
+                expected_fs.full_path_for(&file),
+            ));
             continue;
         }
 
@@ -155,7 +122,7 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
         let is_eq = match is_eq {
             Ok(r) => r,
             Err(e) => {
-                out.push(Result::IoError(e));
+                out.push(EResult::io_error(name, &file, e));
                 continue;
             }
         };
@@ -172,14 +139,15 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
                 })
             });
 
-            out.push(Result::Difference(Tripple {
-                actual: actual_fs.full_path_for(&file),
-                expected: expected_fs.full_path_for(&file),
-                diffs: write_requester.files,
-            }));
+            out.push(EResult::difference(
+                name, &file,
+                actual_fs.full_path_for(&file),
+                expected_fs.full_path_for(&file),
+                write_requester.files,
+            ));
 
             if let Err(e) = diff_result {
-                out.push(Result::IoError(e));
+                out.push(EResult::io_error(name, &file, e));
             }
         }
     }
@@ -190,10 +158,11 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
         }
 
         if !actual_fs.exists(&file) {
-            out.push(Result::ActualNotFound(Double {
-                actual: actual_fs.full_path_for(&file),
-                expected: expected_fs.full_path_for(&file),
-            }));
+            out.push(EResult::actual_not_found(
+                name, &file,
+                actual_fs.full_path_for(&file),
+                expected_fs.full_path_for(&file),
+            ));
             continue;
         }
     }

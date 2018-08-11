@@ -1,0 +1,2 @@
+[workspace]
+members = ["expectation", "example", "cargo-expect", "expectation-shared", "expectation-plugin"]
