@@ -54,14 +54,19 @@ pub enum Command {
 }
 
 fn main() {
-    let mut args: Vec<_> = ::std::env::args().collect();
+    let mut args: Vec<_> = ::std::env::args_os().collect();
     if args.len() >= 2 && args[1] == "expect" {
         args.remove(1);
     }
 
     let c = Command::from_iter(args);
     match c {
-        Command::Run(spec) => command::perform_run(spec),
+        Command::Run(spec) => {
+            let good = command::perform_run(spec);
+            if !good {
+                ::std::process::exit(1);
+            }
+        }
         _ => panic!(),
     }
 }

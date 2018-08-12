@@ -71,7 +71,7 @@ fn prepare_command(spec: Specifier, send_ser: String) -> Command {
     command
 }
 
-pub fn perform_run(spec: Specifier) {
+pub fn perform_run(spec: Specifier) -> bool {
     let verbose = spec.verbose;
     let (send_ser, messages) = tcp_listen().unwrap();
     let command = prepare_command(spec, send_ser);
@@ -134,4 +134,6 @@ pub fn perform_run(spec: Specifier) {
         total_files - failed_files,
         total_files
     );
+
+    failed_suites == 0
 }
