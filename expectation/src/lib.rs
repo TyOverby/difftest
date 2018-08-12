@@ -1,4 +1,5 @@
 extern crate expectation_shared;
+extern crate serde_json;
 extern crate walkdir;
 
 #[cfg(feature = "text")]
@@ -6,6 +7,7 @@ extern crate diff;
 
 pub mod extensions;
 mod filesystem;
+mod ipc;
 mod provider;
 #[cfg(test)]
 mod test;
@@ -33,6 +35,9 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
 
     let mut succeeded = true;
     let results = validate(name, top_fs, provider, |_| true);
+
+    ipc::send(&results);
+
     for result in results {
         match result.kind {
             ResultKind::Ok => {}
@@ -99,7 +104,8 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
 
         if !actual_fs.exists(&file) {
             out.push(EResult::actual_not_found(
-                name, &file,
+                name,
+                &file,
                 actual_fs.full_path_for(&file),
                 expected_fs.full_path_for(&file),
             ));
@@ -108,7 +114,8 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
 
         if !expected_fs.exists(&file) {
             out.push(EResult::expected_not_found(
-                name, &file,
+                name,
+                &file,
                 actual_fs.full_path_for(&file),
                 expected_fs.full_path_for(&file),
             ));
@@ -140,7 +147,8 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
             });
 
             out.push(EResult::difference(
-                name, &file,
+                name,
+                &file,
                 actual_fs.full_path_for(&file),
                 expected_fs.full_path_for(&file),
                 write_requester.files,
@@ -159,7 +167,8 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
 
         if !actual_fs.exists(&file) {
             out.push(EResult::actual_not_found(
-                name, &file,
+                name,
+                &file,
                 actual_fs.full_path_for(&file),
                 expected_fs.full_path_for(&file),
             ));

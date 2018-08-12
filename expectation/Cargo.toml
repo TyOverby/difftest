@@ -12,6 +12,8 @@ text = ["diff"]
 
 [dependencies]
 walkdir = "2.2.0"
+serde="1.*.*"
+serde_json="1.*.*"
 
 [dependencies.diff]
 version = "0.1.*"
