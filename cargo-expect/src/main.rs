@@ -8,6 +8,7 @@ extern crate crossbeam;
 
 use structopt::StructOpt;
 mod command;
+mod output;
 
 #[derive(StructOpt, Debug)]
 pub struct Specifier {

@@ -25,7 +25,27 @@ pub type Provider = provider::Provider<RealFileSystem>;
 #[cfg(test)]
 type FakeProvider = provider::Provider<FakeFileSystem>;
 
+fn should_continue(name: &str) -> bool {
+    match std::env::var("CARGO_EXPECT_FILTER") {
+        Ok(v) => name.contains(&v),
+        Err(_) => true,
+    }
+}
+
+fn file_filter(file: &Path) -> bool {
+    match std::env::var("CARGO_EXPECT_FILES") {
+        Ok(v) => v
+            .split(",")
+            .any(|ending| file.to_str().map(|f| f.ends_with(ending)).unwrap_or(false)),
+        Err(_) => true,
+    }
+}
+
 pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
+    if !should_continue(name) {
+        return;
+    }
+
     let top_fs = RealFileSystem {
         root: "./expectation-tests".into(),
     };
@@ -34,9 +54,9 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     f(&mut provider);
 
     let mut succeeded = true;
-    let results = validate(name, top_fs, provider, |_| true);
+    let results = validate(name, top_fs, provider, file_filter);
 
-    ipc::send(&results);
+    ipc::send(name, &results);
 
     for result in results {
         match result.kind {

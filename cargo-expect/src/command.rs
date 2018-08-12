@@ -2,7 +2,6 @@ use super::Specifier;
 use crossbeam::channel::{unbounded, Receiver};
 use expectation_shared::Result as EResult;
 use serde_json;
-use serde_json::de::IoRead;
 use std::io::Result as IoResult;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
@@ -19,7 +18,7 @@ fn get_listener() -> IoResult<TcpListener> {
     TcpListener::bind("localhost:{9101}")
 }
 
-pub fn tcp_listen() -> IoResult<(String, Receiver<Vec<EResult>>)> {
+pub fn tcp_listen() -> IoResult<(String, Receiver<(String, Vec<EResult>)>)> {
     let listener = get_listener()?;
     let addr = listener.local_addr();
 
@@ -29,15 +28,11 @@ pub fn tcp_listen() -> IoResult<(String, Receiver<Vec<EResult>>)> {
         let sender = sender.clone();
         match listener.accept() {
             Ok((conn, _)) => {
-                spawn(move || {
-                    let stream = serde_json::StreamDeserializer::new(IoRead::new(conn));
-                    let out: Result<_, _> = stream.collect();
-                    match out {
-                        Ok(out) => {
-                            let _ = sender.send(out);
-                        }
-                        Err(e) => eprintln!("{}", e),
+                spawn(move || match serde_json::from_reader(conn) {
+                    Ok(out) => {
+                        let _ = sender.send(out);
                     }
+                    Err(e) => eprintln!("{}", e),
                 });
             }
             Err(e) => {
@@ -63,8 +58,12 @@ pub fn process_listen(mut command: Command) -> IoResult<Receiver<()>> {
 fn prepare_command(spec: Specifier, send_ser: String) -> Command {
     let mut command = Command::new("cargo");
     command.arg("test");
+    command.arg("expect__");
     if let Some(filter) = spec.filter {
-        command.arg(filter);
+        command.env("CARGO_EXPECT_FILTER", filter);
+    }
+    if !spec.filetypes.is_empty() {
+        command.env("CARGO_EXPECT_FILES", spec.filetypes.join(","));
     }
     command.env("CARGO_EXPECT_IPC", send_ser);
     command.stdout(Stdio::null());
@@ -73,6 +72,7 @@ fn prepare_command(spec: Specifier, send_ser: String) -> Command {
 }
 
 pub fn perform_run(spec: Specifier) {
+    let verbose = spec.verbose;
     let (send_ser, messages) = tcp_listen().unwrap();
     let command = prepare_command(spec, send_ser);
     let done_recvr = process_listen(command);
@@ -81,7 +81,7 @@ pub fn perform_run(spec: Specifier) {
         select![
             recv(messages, item) => {
                 match item {
-                    Some(item) => println!("{:?}", item),
+                    Some((name, results)) => ::output::print_results(&name, &results, verbose),
                     None => { break 'a; }
                 }
             },
@@ -90,8 +90,8 @@ pub fn perform_run(spec: Specifier) {
     }
 
     loop {
-        if let Some(item) = messages.try_recv() {
-            println!("{:#?}", item);
+        if let Some((name, results)) = messages.try_recv() {
+            ::output::print_results(&name, &results, verbose);
         } else {
             break;
         }
