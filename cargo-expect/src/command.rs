@@ -58,7 +58,7 @@ pub fn process_listen(mut command: Command) -> IoResult<Receiver<()>> {
 fn prepare_command(spec: Specifier, send_ser: String) -> Command {
     let mut command = Command::new("cargo");
     command.arg("test");
-    command.arg("expect__");
+    command.arg("expectation_test");
     if let Some(filter) = spec.filter {
         command.env("CARGO_EXPECT_FILTER", filter);
     }

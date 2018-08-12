@@ -1,22 +1,19 @@
 use expectation_shared::Result as EResult;
 use serde_json;
 use std::env;
-use std::io::Write;
 use std::net::TcpStream;
 
 fn get_stream() -> Option<TcpStream> {
     let env_var = match env::var("CARGO_EXPECT_IPC") {
         Ok(s) => s,
-        Err(e) => {
-            eprintln!("{:?}", e);
+        Err(_) => {
             return None;
         }
     };
 
     let stream = match TcpStream::connect(env_var) {
         Ok(s) => s,
-        Err(e) => {
-            eprintln!("{:?}", e);
+        Err(_) => {
             return None;
         }
     };

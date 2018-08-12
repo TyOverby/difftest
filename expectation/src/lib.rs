@@ -42,6 +42,7 @@ fn file_filter(file: &Path) -> bool {
 }
 
 pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
+    let name = name.trim_left_matches("expectation_test_");
     if !should_continue(name) {
         return;
     }
@@ -98,6 +99,16 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     if !succeeded {
         panic!("Expectation test found some errors.");
     }
+}
+
+#[macro_export]
+macro_rules! expectation_test {
+    (fn $name:ident ($provider:ident : $type:ty) $body:tt) => {
+        #[test]
+        fn expectation_test_foobar() {
+            $crate::expect(stringify!($name), (|$provider: $type| $body));
+        }
+    };
 }
 
 pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
@@ -177,7 +188,10 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
             if let Err(e) = diff_result {
                 out.push(EResult::io_error(name, &file, e));
             }
+            continue;
         }
+
+        out.push(EResult::ok(name, &file));
     }
 
     for file in expected_fs.files() {

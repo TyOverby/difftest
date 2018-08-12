@@ -78,7 +78,10 @@ fn expand_meta_expectation(
             return wrap_item(cx, span, &*item, inner_ident);
         }
         _ => {
-            cx.span_err(span, "#[expectation] only supported on statics and functions");
+            cx.span_err(
+                span,
+                "#[expectation] only supported on statics and functions",
+            );
         }
     }
     Annotatable::Item(item)
@@ -90,7 +93,7 @@ fn wrap_item(
     item: &ast::Item,
     inner_ident: P<ast::Expr>,
 ) -> Annotatable {
-    let new_name_str = "expect__".to_string() + &item.ident.as_str();
+    let new_name_str = "expectation_test_".to_string() + &item.ident.as_str();
     let new_name = ast::Ident::from_str(&new_name_str);
 
     // Copy original function without attributes
@@ -99,8 +102,8 @@ fn wrap_item(
         ..item.clone()
     });
     // ::expectation::expectation
-    let crate_name= Ident::from_str("expectation");
-    let function_name= Ident::from_str("expect");
+    let crate_name = Ident::from_str("expectation");
+    let function_name = Ident::from_str("expect");
     let check_path = vec![crate_name, function_name];
     // Wrap original function in new outer function,
     // calling ::expectation::expectation()
