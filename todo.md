@@ -1,19 +1,25 @@
+
+# High Priority
+1. `cargo expect promote`
+2. Redo API surface to not be so janky
+3. Get something like concat-idents working for the stable testing macro
+
+# Mid Priority
+- `cargo expect clean` works
+- Some form of `.gitignore` support for helping people out.
+- Write some epectation tests for cargo-expect
+- Add serializer support
+  - Ron
+  - Json
+- Add binary file support
+- Add image file support
 - Find out which order (expected, actual) vs (actual, expected) the tests should be presented in.
-- Add support for file-globbing for input
-- Make strategies more general purpose
-  - Build Skeletor support in
-- Support handling of command line arguments
-- Better commandline support
-  - Parse args...
-    - ...in order to filter tests
-    - ...in order to optionally rebaseline tests
-    - ...in order to be verbose or not
-  - Pretty output
-    - Good defaults for test reporting
-    - Quiet mode
-    - Verbose mode for showing textual diffs inline
+
+# Low Priority
+- Support handling of more cargo test command line arguments
+  - `--release`
 - Web "site"
-  - Default way to interact with the testing tool
+  - `cargo expect browse`
   - Show passing / failing tests
   - Show diffs in the website
   - No server necessary
