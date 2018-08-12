@@ -3,6 +3,7 @@
 1. `cargo expect promote`
 2. Redo API surface to not be so janky
 3. Get something like concat-idents working for the stable testing macro
+4. Good readme
 
 # Mid Priority
 - `cargo expect clean` works
