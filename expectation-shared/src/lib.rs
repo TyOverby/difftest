@@ -34,6 +34,13 @@ pub struct Result {
 }
 
 impl Result {
+    pub fn is_ok(&self) -> bool {
+        match &self.kind {
+            ResultKind::Ok => true,
+            _ => false,
+        }
+    }
+
     pub fn ok<N, P>(name: N, file: P) -> Self
     where
         N: Into<String>,
@@ -80,7 +87,13 @@ impl Result {
         }
     }
 
-    pub fn difference<N, P1, P2, P3>(name: N, file: P1, actual: P2, expected: P3, diffs: Vec<PathBuf>) -> Self
+    pub fn difference<N, P1, P2, P3>(
+        name: N,
+        file: P1,
+        actual: P2,
+        expected: P3,
+        diffs: Vec<PathBuf>,
+    ) -> Self
     where
         N: Into<String>,
         P1: Into<PathBuf>,

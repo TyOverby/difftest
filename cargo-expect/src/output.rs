@@ -11,14 +11,6 @@ pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
         println!("✘ {}", name);
     }
 
-    /*
-
-    ExpectedNotFound(Double),
-    ActualNotFound(Double),
-    Difference(Tripple),
-    IoError(String),
-*/
-
     if !passed || verbose {
         for result in results {
             match result {

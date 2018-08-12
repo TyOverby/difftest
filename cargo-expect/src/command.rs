@@ -77,11 +77,16 @@ pub fn perform_run(spec: Specifier) {
     let command = prepare_command(spec, send_ser);
     let done_recvr = process_listen(command);
 
+    let mut total_results = vec![];
+
     'a: loop {
         select![
             recv(messages, item) => {
                 match item {
-                    Some((name, results)) => ::output::print_results(&name, &results, verbose),
+                    Some((name, results)) => {
+                        ::output::print_results(&name, &results, verbose);
+                        total_results.push((name, results));
+                    },
                     None => { break 'a; }
                 }
             },
@@ -92,8 +97,41 @@ pub fn perform_run(spec: Specifier) {
     loop {
         if let Some((name, results)) = messages.try_recv() {
             ::output::print_results(&name, &results, verbose);
+            total_results.push((name, results));
         } else {
             break;
         }
     }
+
+    let mut total_suites = 0;
+    let mut failed_suites = 0;
+    let mut total_files = 0;
+    let mut failed_files = 0;
+
+    for (_, results) in total_results {
+        total_suites += 1;
+        let mut success = true;
+        for file in results {
+            total_files += 1;
+            if !file.is_ok() {
+                failed_files += 1;
+                success = false;
+            }
+        }
+        if !success {
+            failed_suites += 1;
+        }
+    }
+
+    println!("◼︎ Expectation Results");
+    println!(
+        "  ► Tests: {} / {}",
+        total_suites - failed_suites,
+        total_suites
+    );
+    println!(
+        "  ► Files: {} / {}",
+        total_files - failed_files,
+        total_files
+    );
 }
