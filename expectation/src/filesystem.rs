@@ -55,12 +55,14 @@ impl FakeFileSystem {
             .borrow()
             .keys()
             .filter(|p| p.starts_with(&root))
-            .count() == 0
+            .count()
+            == 0
     }
 }
 
 impl FileSystem for RealFileSystem {
     fn subsystem<P: AsRef<Path>>(&self, path: P) -> Self {
+        assert!(path.as_ref().is_relative(), "path must be relative");
         let mut new = self.clone();
         new.root.push(path);
         new
@@ -101,6 +103,7 @@ impl FileSystem for RealFileSystem {
     }
 
     fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+        assert!(path.as_ref().is_relative(), "path must be relative");
         self.root.join(path)
     }
 
