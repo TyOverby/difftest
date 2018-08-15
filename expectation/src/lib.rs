@@ -42,6 +42,10 @@ fn file_filter(file: &Path) -> bool {
 }
 
 pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
+    if !name.starts_with("expectation_test_") {
+        panic!("expectation test {} is an invalid test name.  It must start with \"expectation_test_\"", name);
+    }
+
     let name = name.trim_left_matches("expectation_test_");
     if !should_continue(name) {
         return;

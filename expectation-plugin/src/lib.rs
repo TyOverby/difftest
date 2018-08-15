@@ -78,10 +78,7 @@ fn expand_meta_expectation(
             return wrap_item(cx, span, &*item, inner_ident);
         }
         _ => {
-            cx.span_err(
-                span,
-                "#[expectation] only supported on statics and functions",
-            );
+            cx.span_err(span, "#[expectation] only supported on functions");
         }
     }
     Annotatable::Item(item)
@@ -112,7 +109,7 @@ fn wrap_item(
         node: StmtKind::Item(prop),
         span: span,
     };
-    let name_str = cx.expr_str(span, Symbol::intern(&item.ident.as_str()));
+    let name_str = cx.expr_str(span, Symbol::intern(&new_name_str));
     let check_call = Stmt {
         id: ast::DUMMY_NODE_ID,
         node: StmtKind::Expr(cx.expr_call_global(span, check_path, vec![name_str, inner_ident])),
