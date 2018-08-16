@@ -1,3 +1,4 @@
+use colored::*;
 use expectation_shared::{Result as EResult, ResultKind};
 
 pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
@@ -6,9 +7,9 @@ pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
         _ => false,
     });
     if passed {
-        println!("✔︎ {}", name);
+        println!("︎{} {}", "✔".green(), name);
     } else {
-        println!("✘ {}", name);
+        println!("{} {}", "✘".red(), name);
     }
 
     if !passed || verbose {
@@ -19,7 +20,11 @@ pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
                     kind: ResultKind::Ok,
                     ..
                 } => {
-                    println!("  ✔︎ {} ❯ Ok", file_name.to_string_lossy());
+                    println!(
+                        "  {}︎ {} ❯ Ok",
+                        "✔".green(),
+                        file_name.to_string_lossy()
+                    );
                 }
                 EResult {
                     file_name,
@@ -27,19 +32,32 @@ pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
                     ..
                 } => {
                     println!(
-                        "  ✘ {} ❯ Expected Not Found",
+                        "  {} {} ❯ Expected Not Found",
+                        "✘".red(),
                         file_name.to_string_lossy()
                     );
                     println!("    ► Actual: {}", double.actual.to_string_lossy());
-                    println!("    ☛ Expected: {}", double.expected.to_string_lossy());
+                    println!(
+                        "    {} Expected: {}",
+                        "☛".yellow(),
+                        double.expected.to_string_lossy()
+                    );
                 }
                 EResult {
                     file_name,
                     kind: ResultKind::ActualNotFound(double),
                     ..
                 } => {
-                    println!("  ✘ {} ❯ Actual Not Found", file_name.to_string_lossy());
-                    println!("    ☛ Actual: {}", double.actual.to_string_lossy());
+                    println!(
+                        "  {} {} ❯ Actual Not Found",
+                        "✘".red(),
+                        file_name.to_string_lossy()
+                    );
+                    println!(
+                        "    {} Actual: {}",
+                        "☛".yellow(),
+                        double.actual.to_string_lossy()
+                    );
                     println!("    ► Expected: {}", double.expected.to_string_lossy());
                 }
                 EResult {
@@ -47,7 +65,11 @@ pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
                     kind: ResultKind::Difference(tripple),
                     ..
                 } => {
-                    println!("  ✘ {} ❯ Difference", file_name.to_string_lossy());
+                    println!(
+                        "  {} {} ❯ Difference",
+                        "✘".red(),
+                        file_name.to_string_lossy()
+                    );
                     println!("    ► Actual: {}", tripple.actual.to_string_lossy());
                     println!("    ► Expected: {}", tripple.expected.to_string_lossy());
                     match tripple.diffs.len() {
@@ -69,7 +91,8 @@ pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
                     ..
                 } => {
                     println!(
-                        "  ✘ Io Error for file {}: {}",
+                        "  {} Io Error for file {}: {}",
+                        "✘".red(),
                         file_name.to_string_lossy(),
                         error
                     );

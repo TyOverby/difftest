@@ -109,7 +109,7 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
 macro_rules! expectation_test {
     (fn $name:ident ($provider:ident : $type:ty) $body:tt) => {
         #[test]
-        fn expectation_test_foobar() {
+        fn $name() {
             $crate::expect(stringify!($name), (|$provider: $type| $body));
         }
     };

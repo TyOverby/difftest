@@ -1,4 +1,5 @@
 use super::Specifier;
+use colored::*;
 use crossbeam::channel::{unbounded, Receiver};
 use expectation_shared::Result as EResult;
 use serde_json;
@@ -58,6 +59,7 @@ pub fn process_listen(mut command: Command) -> IoResult<Receiver<()>> {
 fn prepare_command(spec: Specifier, send_ser: String) -> Command {
     let mut command = Command::new("cargo");
     command.arg("test");
+    command.arg("--lib");
     command.arg("expectation_test");
     if let Some(filter) = spec.filter {
         command.env("CARGO_EXPECT_FILTER", filter);
@@ -123,14 +125,24 @@ pub fn perform_run(spec: Specifier) -> bool {
         }
     }
 
-    println!("◼︎ Expectation Results");
+    let colorizer = |s: &str| {
+        if failed_suites == 0 {
+            s.green()
+        } else {
+            s.red()
+        }
+    };
+
+    println!("{}︎ Expectation Results", colorizer("◼"));
     println!(
-        "  ► Tests: {} / {}",
+        "  {} Tests: {} / {}",
+        colorizer("►"),
         total_suites - failed_suites,
         total_suites
     );
     println!(
-        "  ► Files: {} / {}",
+        "  {} Files: {} / {}",
+        colorizer("►"),
         total_files - failed_files,
         total_files
     );

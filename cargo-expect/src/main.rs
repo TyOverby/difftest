@@ -5,6 +5,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate crossbeam;
+extern crate colored;
 
 use structopt::StructOpt;
 mod command;
