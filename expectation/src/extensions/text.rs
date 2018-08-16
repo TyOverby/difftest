@@ -8,8 +8,7 @@ use std::path::Path;
 use diff;
 
 pub trait TextDiffExtension {
-    type F: FileSystem;
-    fn text_writer<N>(&mut self, filename: N) -> Writer<Self::F>
+    fn text_writer<N>(&mut self, filename: N) -> Writer
     where
         N: AsRef<Path>;
 
@@ -32,9 +31,8 @@ pub trait TextDiffExtension {
     }
 }
 
-impl<F: FileSystem> TextDiffExtension for Provider<F> {
-    type F = F;
-    fn text_writer<S>(&mut self, filename: S) -> Writer<F>
+impl TextDiffExtension for Provider {
+    fn text_writer<S>(&mut self, filename: S) -> Writer
     where
         S: AsRef<Path>,
     {
@@ -63,11 +61,11 @@ fn add_extension(p: &Path, new_ext: &str) -> PathBuf {
     p.with_extension(format!("{}{}", old_ext, new_ext))
 }
 
-fn text_diff<F: FileSystem, R1: Read, R2: Read>(
+fn text_diff<R1: Read, R2: Read>(
     mut r1: R1,
     mut r2: R2,
     path: &Path,
-    write_requester: &mut WriteRequester<F>,
+    write_requester: &mut WriteRequester,
 ) -> IoResult<()> {
     let mut s1 = String::new();
     let mut s2 = String::new();

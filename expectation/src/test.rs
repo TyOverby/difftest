@@ -17,7 +17,7 @@ fn byte_for_byte_diff<R1: Read, R2: Read>(
     mut r1: R1,
     mut r2: R2,
     name: &Path,
-    w: &mut provider::WriteRequester<filesystem::FakeFileSystem>,
+    w: &mut provider::WriteRequester,
 ) -> IoResult<()> {
     let mut v1 = vec![];
     let mut v2 = vec![];
@@ -40,19 +40,27 @@ fn byte_for_byte_diff<R1: Read, R2: Read>(
 }
 
 #[cfg(test)]
-pub fn difftest_prepare<F: FnOnce(&mut FakeProvider)>(name: &str, f: F) -> FakeFileSystem {
+pub fn difftest_prepare<F: FnOnce(&mut Provider)>(name: &str, f: F) -> FakeFileSystem {
     let top_fs = filesystem::FakeFileSystem::new();
-    let mut provider =
-        provider::Provider::new(top_fs.clone(), top_fs.subsystem("actual").subsystem(name));
+    let mut provider = provider::Provider::new(
+        top_fs.duplicate(),
+        top_fs
+            .subsystem(Path::new("actual"))
+            .subsystem(Path::new(name)),
+    );
     f(&mut provider);
     top_fs
 }
 
 #[cfg(test)]
-pub fn difftest_validate<F: FnOnce(&mut FakeProvider)>(name: &str, f: F) -> Vec<EResult> {
+pub fn difftest_validate<F: FnOnce(&mut Provider)>(name: &str, f: F) -> Vec<EResult> {
     let top_fs = filesystem::FakeFileSystem::new();
-    let mut provider =
-        provider::Provider::new(top_fs.clone(), top_fs.subsystem("actual").subsystem(name));
+    let mut provider = provider::Provider::new(
+        top_fs.duplicate(),
+        top_fs
+            .subsystem(Path::new("actual"))
+            .subsystem(Path::new(name)),
+    );
     f(&mut provider);
     validate(name, top_fs, provider, |_| true)
 }
@@ -79,7 +87,7 @@ fn provider_used_once() {
     println!("{:#?}", fs);
 
     assert!(!fs.is_empty());
-    fs.read("actual/hi/foo.txt", |r| {
+    fs.read(Path::new("actual/hi/foo.txt"), &mut |r| {
         let mut v = String::new();
         r.read_to_string(&mut v)?;
         assert_eq!(v, "hello world");
@@ -111,14 +119,14 @@ fn provider_used_more_than_once() {
     });
 
     assert!(!fs.is_empty());
-    fs.read("actual/hi/foo.txt", |r| {
+    fs.read(Path::new("actual/hi/foo.txt"), &mut |r| {
         let mut v = String::new();
         r.read_to_string(&mut v)?;
         assert_eq!(v, "hello world");
         Ok(())
     }).unwrap();
 
-    fs.read("actual/hi/bar.txt", |r| {
+    fs.read(Path::new("actual/hi/bar.txt"), &mut |r| {
         let mut v = String::new();
         r.read_to_string(&mut v)?;
         assert_eq!(v, "hello world");
@@ -161,7 +169,7 @@ fn validate_one_file_actual_not_found() {
     let results = difftest_validate("hi", |provider| {
         provider
             .root_fs
-            .write("expected/hi/something_else.txt", |writer| {
+            .write(Path::new("expected/hi/something_else.txt"), &mut |writer| {
                 write!(writer, "not found")
             }).unwrap();
 
@@ -198,7 +206,7 @@ fn validate_one_file_diff_is_bad() {
     let results = difftest_validate("hi", |provider| {
         provider
             .root_fs
-            .write("expected/hi/foo.txt", |writer| {
+            .write(Path::new("expected/hi/foo.txt"), &mut |writer| {
                 write!(writer, "goodbye found")
             }).unwrap();
 
@@ -213,7 +221,8 @@ fn validate_one_file_diff_is_bad() {
     assert_eq!(
         results,
         vec![EResult::difference(
-            "hi", "foo.txt",
+            "hi",
+            "foo.txt",
             "/actual/hi/foo.txt",
             "/expected/hi/foo.txt",
             vec!["/diff/hi/foo.txt.diff".into()],
@@ -227,7 +236,7 @@ fn validate_one_file_diff_is_bad_with_text_extension() {
     let results = difftest_validate("hi", |provider| {
         provider
             .root_fs
-            .write("expected/hi/foo.txt", |writer| {
+            .write(Path::new("expected/hi/foo.txt"), &mut |writer| {
                 write!(writer, "goodbye found")
             }).unwrap();
 
@@ -238,7 +247,8 @@ fn validate_one_file_diff_is_bad_with_text_extension() {
     assert_eq!(
         results,
         vec![EResult::difference(
-            "hi", "foo.txt",
+            "hi",
+            "foo.txt",
             "/actual/hi/foo.txt",
             "/expected/hi/foo.txt",
             vec!["/diff/hi/foo.txt.diff".into()],

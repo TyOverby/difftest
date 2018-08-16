@@ -12,18 +12,14 @@ mod provider;
 #[cfg(test)]
 mod test;
 
+pub use provider::Provider;
+
 use expectation_shared::{Result as EResult, ResultKind};
 use filesystem::*;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub use provider::Writer;
-
-pub type WriteRequester = provider::WriteRequester<RealFileSystem>;
-
-pub type Provider = provider::Provider<RealFileSystem>;
-#[cfg(test)]
-type FakeProvider = provider::Provider<FakeFileSystem>;
 
 fn should_continue(name: &str) -> bool {
     match std::env::var("CARGO_EXPECT_FILTER") {
@@ -54,8 +50,10 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     let top_fs = RealFileSystem {
         root: "./expectation-tests".into(),
     };
-    let act_fs = top_fs.subsystem("actual").subsystem(name);
-    let mut provider = Provider::new(top_fs.clone(), act_fs);
+    let act_fs = top_fs
+        .subsystem(Path::new("actual"))
+        .subsystem(Path::new(name));
+    let mut provider = Provider::new(top_fs.duplicate(), act_fs.duplicate());
     f(&mut provider);
 
     let mut succeeded = true;
@@ -115,18 +113,20 @@ macro_rules! expectation_test {
     };
 }
 
-pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
+fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
     name: &str,
     fs: F,
-    provider: provider::Provider<F>,
+    provider: Provider,
     filter: Fi,
 ) -> Vec<EResult> {
     let mut visited = HashSet::new();
     let mut out = Vec::new();
 
-    let expected_fs = fs.subsystem("expected").subsystem(name);
-    let actual_fs = fs.subsystem("actual").subsystem(name);
-    let diff_fs = fs.subsystem("diff").subsystem(name);
+    let expected_fs = fs
+        .subsystem(Path::new("expected"))
+        .subsystem(Path::new(name));
+    let actual_fs = fs.subsystem(Path::new("actual")).subsystem(Path::new(name));
+    let diff_fs = fs.subsystem(Path::new("diff")).subsystem(Path::new(name));
 
     #[allow(unused_variables)]
     let fs = ();
@@ -157,12 +157,16 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
             continue;
         }
 
-        let is_eq = actual_fs.read(&file, |actual_read| {
-            expected_fs.read(&file, |expected_read| eq(actual_read, expected_read))
+        let mut is_eq = false;
+        let res = actual_fs.read(&file, &mut |actual_read| {
+            expected_fs.read(&file, &mut |expected_read| {
+                is_eq = eq(actual_read, expected_read)?;
+                Ok(())
+            })
         });
 
-        let is_eq = match is_eq {
-            Ok(r) => r,
+        let is_eq = match res {
+            Ok(_) => is_eq,
             Err(e) => {
                 out.push(EResult::io_error(name, &file, e));
                 continue;
@@ -171,12 +175,12 @@ pub fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
 
         if !is_eq {
             let mut write_requester = provider::WriteRequester {
-                fs: diff_fs.clone(),
+                fs: diff_fs.duplicate(),
                 files: vec![],
             };
 
-            let diff_result = actual_fs.read(&file, |actual_read| {
-                expected_fs.read(&file, |expected_read| {
+            let diff_result = actual_fs.read(&file, &mut |actual_read| {
+                expected_fs.read(&file, &mut |expected_read| {
                     diff(actual_read, expected_read, &file, &mut write_requester)
                 })
             });

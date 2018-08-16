@@ -1,9 +1,9 @@
 
 # High Priority
 - [ ] `cargo expect promote`
-- [ ] Redo API surface to not be so janky
-   - [ ] Hide most of it with doc_hidden?
-- [ ] Get something like concat-idents working for the stable testing macro
+- [x] Redo API surface to not be so janky
+- [x] Get something like concat-idents working for the stable testing macro
+  - > Not needed anymore with the newer macro
 - [ ] Good readme
 
 # Mid Priority
@@ -18,7 +18,8 @@
   - [ ] Json
 - [ ] Add binary file support
 - [ ] Add image file support
-- [ ] Find out which order (expected, actual) vs (actual, expected) the tests should be presented in.
+- [x] Find out which order (expected, actual) vs (actual, expected) the tests should be presented in.
+  - > It should be (expectd, actual)
 - [ ] Emit warnings when a single file has been written to more than once in the same test.
 - [x] Add color to cargo-expect output
 

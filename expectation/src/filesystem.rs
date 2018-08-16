@@ -23,20 +23,13 @@ pub struct FakeFileSystem {
     mapping: Rc<RefCell<HashMap<PathBuf, Vec<u8>>>>,
 }
 
-pub trait FileSystem: Clone {
-    fn subsystem<P: AsRef<Path>>(&self, path: P) -> Self;
-    fn exists<P: AsRef<Path>>(&self, path: P) -> bool;
-    fn read<P: AsRef<Path>, F: FnOnce(&mut Read) -> IoResult<R>, R>(
-        &self,
-        path: P,
-        f: F,
-    ) -> IoResult<R>;
-    fn write<P: AsRef<Path>, F: FnOnce(&mut Write) -> IoResult<()>>(
-        &self,
-        path: P,
-        f: F,
-    ) -> IoResult<()>;
-    fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf;
+pub trait FileSystem {
+    fn duplicate(&self) -> Box<FileSystem>;
+    fn subsystem(&self, path: &Path) -> Box<FileSystem>;
+    fn exists(&self, path: &Path) -> bool;
+    fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()>;
+    fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()>;
+    fn full_path_for(&self, path: &Path) -> PathBuf;
     fn files(&self) -> Vec<PathBuf>;
 }
 
@@ -61,25 +54,25 @@ impl FakeFileSystem {
 }
 
 impl FileSystem for RealFileSystem {
-    fn subsystem<P: AsRef<Path>>(&self, path: P) -> Self {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn subsystem(&self, path: &Path) -> Box<FileSystem> {
+        assert!(path.is_relative(), "path must be relative");
         let mut new = self.clone();
         new.root.push(path);
-        new
+        Box::new(new)
     }
 
-    fn exists<P: AsRef<Path>>(&self, path: P) -> bool {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn duplicate(&self) -> Box<FileSystem> {
+        Box::new(self.clone())
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         path.exists()
     }
 
-    fn read<P: AsRef<Path>, F: FnOnce(&mut Read) -> IoResult<R>, R>(
-        &self,
-        path: P,
-        f: F,
-    ) -> IoResult<R> {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()> {
+        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         match File::open(path) {
             Ok(mut file) => f(&mut file),
@@ -87,12 +80,8 @@ impl FileSystem for RealFileSystem {
         }
     }
 
-    fn write<P: AsRef<Path>, F: FnOnce(&mut Write) -> IoResult<()>>(
-        &self,
-        path: P,
-        f: F,
-    ) -> IoResult<()> {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()> {
+        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         create_dir_all(path.parent().unwrap())?;
 
@@ -102,8 +91,8 @@ impl FileSystem for RealFileSystem {
         }
     }
 
-    fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn full_path_for(&self, path: &Path) -> PathBuf {
+        assert!(path.is_relative(), "path must be relative");
         self.root.join(path)
     }
 
@@ -120,24 +109,23 @@ impl FileSystem for RealFileSystem {
 
 #[cfg(test)]
 impl FileSystem for FakeFileSystem {
-    fn subsystem<P: AsRef<Path>>(&self, path: P) -> Self {
+    fn subsystem(&self, path: &Path) -> Box<FileSystem> {
         let mut new = self.clone();
         new.root.push(path);
-        new
+        Box::new(new)
+    }
+    fn duplicate(&self) -> Box<FileSystem> {
+        Box::new(self.clone())
     }
 
-    fn exists<P: AsRef<Path>>(&self, path: P) -> bool {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn exists(&self, path: &Path) -> bool {
+        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         self.mapping.borrow().contains_key(&path)
     }
 
-    fn read<P: AsRef<Path>, F: FnOnce(&mut Read) -> IoResult<R>, R>(
-        &self,
-        path: P,
-        f: F,
-    ) -> IoResult<R> {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()> {
+        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
 
         let contents = match self.mapping.borrow().get(&path) {
@@ -153,12 +141,8 @@ impl FileSystem for FakeFileSystem {
         f(&mut &contents[..])
     }
 
-    fn write<P: AsRef<Path>, F: FnOnce(&mut Write) -> IoResult<()>>(
-        &self,
-        path: P,
-        f: F,
-    ) -> IoResult<()> {
-        assert!(path.as_ref().is_relative(), "path must be relative");
+    fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()> {
+        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
 
         let mut contents = vec![];
@@ -168,7 +152,7 @@ impl FileSystem for FakeFileSystem {
         Ok(())
     }
 
-    fn full_path_for<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+    fn full_path_for(&self, path: &Path) -> PathBuf {
         self.root.join(path)
     }
 
