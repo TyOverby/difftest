@@ -40,7 +40,7 @@ pub struct Writer {
 }
 
 impl Provider {
-    pub fn new(root_fs: Box<FileSystem>, fs: Box<FileSystem>) -> Provider {
+    pub(crate) fn new(root_fs: Box<FileSystem>, fs: Box<FileSystem>) -> Provider {
         Provider {
             root_fs,
             fs,

@@ -5,6 +5,10 @@
 - [x] Get something like concat-idents working for the stable testing macro
   - > Not needed anymore with the newer macro
 - [ ] Good readme
+- [ ] Better Provider API
+  - [ ] Clone-able
+  - [ ] "Sub-Directory" able
+  - [ ] `Send`/`Sync` support
 
 # Mid Priority
 - [ ] Dont write to file if the Writer was never written to.
