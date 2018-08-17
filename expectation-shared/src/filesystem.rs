@@ -1,10 +1,6 @@
-#[cfg(test)]
 use std::cell::RefCell;
-#[cfg(test)]
 use std::collections::HashMap;
-#[cfg(test)]
 use std::io::{Error as IoError, ErrorKind};
-#[cfg(test)]
 use std::rc::Rc;
 
 use std::fs::{create_dir_all, File};
@@ -17,7 +13,6 @@ pub struct RealFileSystem {
 }
 
 #[derive(Clone, Debug)]
-#[cfg(test)]
 pub struct FakeFileSystem {
     root: PathBuf,
     mapping: Rc<RefCell<HashMap<PathBuf, Vec<u8>>>>,
@@ -31,25 +26,26 @@ pub trait FileSystem {
     fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()>;
     fn full_path_for(&self, path: &Path) -> PathBuf;
     fn files(&self) -> Vec<PathBuf>;
+    fn remove(&self, path: &Path) -> IoResult<()>;
+    fn is_empty(&self) -> bool {
+        self.files().is_empty()
+    }
+    fn copy(&self, from: &Path, to: &Path) -> IoResult<()> {
+        self.write(to, &mut |writer| {
+            self.read(from, &mut |reader| {
+                ::std::io::copy(reader, writer).map(|_| ())
+            })
+        })
+    }
 }
 
-#[cfg(test)]
+
 impl FakeFileSystem {
     pub fn new() -> Self {
         FakeFileSystem {
             root: PathBuf::from("/"),
             mapping: Rc::new(RefCell::new(HashMap::new())),
         }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        let root = self.root.clone();
-        self.mapping
-            .borrow()
-            .keys()
-            .filter(|p| p.starts_with(&root))
-            .count()
-            == 0
     }
 }
 
@@ -61,18 +57,21 @@ impl FileSystem for RealFileSystem {
         Box::new(new)
     }
 
+    fn remove(&self, path: &Path) -> IoResult<()> {
+        let path = self.root.join(path);
+        ::std::fs::remove_file(path)
+    }
+
     fn duplicate(&self) -> Box<FileSystem> {
         Box::new(self.clone())
     }
 
     fn exists(&self, path: &Path) -> bool {
-        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         path.exists()
     }
 
     fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()> {
-        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         match File::open(path) {
             Ok(mut file) => f(&mut file),
@@ -81,7 +80,6 @@ impl FileSystem for RealFileSystem {
     }
 
     fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()> {
-        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         create_dir_all(path.parent().unwrap())?;
 
@@ -92,7 +90,6 @@ impl FileSystem for RealFileSystem {
     }
 
     fn full_path_for(&self, path: &Path) -> PathBuf {
-        assert!(path.is_relative(), "path must be relative");
         self.root.join(path)
     }
 
@@ -107,9 +104,9 @@ impl FileSystem for RealFileSystem {
     }
 }
 
-#[cfg(test)]
 impl FileSystem for FakeFileSystem {
     fn subsystem(&self, path: &Path) -> Box<FileSystem> {
+        assert!(path.is_relative(), "path must be relative");
         let mut new = self.clone();
         new.root.push(path);
         Box::new(new)
@@ -119,13 +116,17 @@ impl FileSystem for FakeFileSystem {
     }
 
     fn exists(&self, path: &Path) -> bool {
-        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
         self.mapping.borrow().contains_key(&path)
     }
 
+    fn remove(&self, path: &Path) -> IoResult<()> {
+        let path = self.root.join(path);
+        self.mapping.borrow_mut().remove(&path);
+        Ok(())
+    }
+
     fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()> {
-        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
 
         let contents = match self.mapping.borrow().get(&path) {
@@ -142,7 +143,6 @@ impl FileSystem for FakeFileSystem {
     }
 
     fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()> {
-        assert!(path.is_relative(), "path must be relative");
         let path = self.root.join(path);
 
         let mut contents = vec![];

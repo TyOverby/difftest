@@ -1,6 +1,7 @@
 
 # High Priority
-- [ ] `cargo expect promote`
+- [ ] `cargo expect promote` 
+  - [ ] Acquire full paths for all files.
 - [x] Redo API surface to not be so janky
 - [x] Get something like concat-idents working for the stable testing macro
   - > Not needed anymore with the newer macro
@@ -28,6 +29,7 @@
 - [x] Add color to cargo-expect output
 
 # Low Priority
+- [ ] "inline" formatting for path printing
 - [ ] Support handling of more cargo test command line arguments
   - [ ] `--release`
 - [ ] Web "site"

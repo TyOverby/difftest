@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+extern crate walkdir;
+
+pub mod filesystem;
 
 use std::path::PathBuf;
 

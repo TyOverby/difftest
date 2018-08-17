@@ -12,6 +12,7 @@ use expectation::*;
 use std::io::Write;
 
 #[expectation]
+#[should_panic]
 fn test_with_annotation(p: &mut Provider) {
     let mut w = p.text_writer("foo.txt");
     writeln!(w, "a");

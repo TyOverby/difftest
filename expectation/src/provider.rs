@@ -1,7 +1,7 @@
 use std::io::{Read, Result as IoResult, Write};
 use std::path::{Path, PathBuf};
 
-use super::filesystem::FileSystem;
+use expectation_shared::filesystem::FileSystem;
 
 pub struct WriteRequester {
     pub(crate) fs: Box<FileSystem>,
@@ -105,7 +105,7 @@ impl Provider {
 
 #[test]
 fn writer_does_not_write_to_filesystem_if_not_written_to() {
-    use filesystem::*;
+    use expectation_shared::filesystem::*;
     let filesystem = Box::new(FakeFileSystem::new()) as Box<FileSystem>;
     {
         let _writer = Writer::new(filesystem.duplicate(), "foo.txt".into());

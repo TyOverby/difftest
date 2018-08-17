@@ -1,12 +1,10 @@
 extern crate expectation_shared;
 extern crate serde_json;
-extern crate walkdir;
 
 #[cfg(feature = "text")]
 extern crate diff;
 
 pub mod extensions;
-mod filesystem;
 mod ipc;
 mod provider;
 #[cfg(test)]
@@ -15,7 +13,7 @@ mod test;
 pub use provider::Provider;
 
 use expectation_shared::{Result as EResult, ResultKind};
-use filesystem::*;
+use expectation_shared::filesystem::*;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -48,7 +46,7 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     }
 
     let top_fs = RealFileSystem {
-        root: "./expectation-tests".into(),
+        root: Path::new("./expectation-tests").canonicalize().unwrap()
     };
     let act_fs = top_fs
         .subsystem(Path::new("actual"))

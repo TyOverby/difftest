@@ -3,10 +3,12 @@ use colored::*;
 use crossbeam::channel::{unbounded, Receiver};
 use expectation_shared::Result as EResult;
 use serde_json;
+use promote::promote;
 use std::io::Result as IoResult;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
 use std::thread::spawn;
+use expectation_shared::filesystem::*;
 
 fn get_listener() -> IoResult<TcpListener> {
     for i in 0..100 {
@@ -16,7 +18,7 @@ fn get_listener() -> IoResult<TcpListener> {
             Err(_) => continue,
         }
     }
-    TcpListener::bind("localhost:{9101}")
+    TcpListener::bind("localhost:{9100}")
 }
 
 pub fn tcp_listen() -> IoResult<(String, Receiver<(String, Vec<EResult>)>)> {
@@ -71,6 +73,54 @@ fn prepare_command(spec: Specifier, send_ser: String) -> Command {
     command.stdout(Stdio::null());
     command.stderr(Stdio::null());
     command
+}
+
+pub fn perform_promote(spec: Specifier) -> bool {
+    let verbose = spec.verbose;
+    let (send_ser, messages) = tcp_listen().unwrap();
+    let command = prepare_command(spec, send_ser);
+    let done_recvr = process_listen(command);
+
+    let fs =  RealFileSystem { root: "/".into() };
+    let mut success = true;
+
+    'a: loop {
+        select![
+            recv(messages, item) => {
+                match item {
+                    Some((name, results)) => {
+                        let rs: Vec<_> =
+                            results.into_iter()
+                                   .map(|r| {
+                                       let p = promote(&r.kind, fs.duplicate());
+                                       (r, p)
+                                   })
+                                   .collect();
+                        success &= ::output::print_promotion(&name, rs, verbose);
+                    },
+                    None => { break 'a; }
+                }
+            },
+            recv(done_recvr, _) => { break 'a; }
+        ]
+    }
+
+    loop {
+        if let Some((name, results)) = messages.try_recv() {
+            let rs: Vec<_> =
+                results.into_iter()
+                    .map(|r| {
+                        let p = promote(&r.kind, fs.duplicate());
+                        (r, p)
+                    })
+                    .collect();
+            success &= ::output::print_promotion(&name, rs, verbose);
+        } else {
+            break;
+        }
+    }
+
+    success
 }
 
 pub fn perform_run(spec: Specifier) -> bool {

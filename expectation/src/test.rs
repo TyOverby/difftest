@@ -2,6 +2,7 @@ use super::extensions::*;
 use super::*;
 use expectation_shared::Result as EResult;
 use std::io::{Read, Result as IoResult};
+use expectation_shared::filesystem;
 
 fn byte_for_byte_equality<R1: Read, R2: Read>(mut r1: R1, mut r2: R2) -> IoResult<bool> {
     let mut v1 = vec![];

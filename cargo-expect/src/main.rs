@@ -10,6 +10,7 @@ extern crate colored;
 use structopt::StructOpt;
 mod command;
 mod output;
+mod promote;
 
 #[derive(StructOpt, Debug)]
 pub struct Specifier {
@@ -62,6 +63,12 @@ fn main() {
 
     let c = Command::from_iter(args);
     match c {
+        Command::Promote(spec) => {
+            let good = command::perform_promote(spec);
+            if !good {
+                ::std::process::exit(1);
+            }
+        }
         Command::Run(spec) => {
             let good = command::perform_run(spec);
             if !good {
