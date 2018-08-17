@@ -46,8 +46,8 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     }
 
     let top_fs = RealFileSystem {
-        root: Path::new("./expectation-tests").canonicalize().unwrap()
-    };
+        root: Path::new("./").canonicalize().unwrap()
+    }.subsystem(Path::new("expectation-tests"));
     let act_fs = top_fs
         .subsystem(Path::new("actual"))
         .subsystem(Path::new(name));
@@ -111,9 +111,9 @@ macro_rules! expectation_test {
     };
 }
 
-fn validate<F: FileSystem + 'static, Fi: Fn(&Path) -> bool>(
+fn validate<Fi: Fn(&Path) -> bool>(
     name: &str,
-    fs: F,
+    fs: Box<FileSystem>,
     provider: Provider,
     filter: Fi,
 ) -> Vec<EResult> {

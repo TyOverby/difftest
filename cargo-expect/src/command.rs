@@ -83,6 +83,7 @@ pub fn perform_promote(spec: Specifier) -> bool {
 
     let fs =  RealFileSystem { root: "/".into() };
     let mut success = true;
+    let mut files_promoted_count = 0;
 
     'a: loop {
         select![
@@ -96,7 +97,9 @@ pub fn perform_promote(spec: Specifier) -> bool {
                                        (r, p)
                                    })
                                    .collect();
-                        success &= ::output::print_promotion(&name, rs, verbose);
+                        let (s, c_count) =  ::output::print_promotion(&name, rs, verbose);
+                        success &= s;
+                        files_promoted_count += c_count;
                     },
                     None => { break 'a; }
                 }
@@ -114,11 +117,15 @@ pub fn perform_promote(spec: Specifier) -> bool {
                         (r, p)
                     })
                     .collect();
-            success &= ::output::print_promotion(&name, rs, verbose);
+            let (s, c_count) =  ::output::print_promotion(&name, rs, verbose);
+            success &= s;
+            files_promoted_count += c_count;
         } else {
             break;
         }
     }
+
+    println!("{} Files Promoted", files_promoted_count);
 
     success
 }

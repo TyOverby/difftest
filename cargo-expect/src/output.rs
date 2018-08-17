@@ -3,20 +3,32 @@ use expectation_shared::{Result as EResult, ResultKind};
 use std::io::Result as IoResult;
 use std::error::Error;
 
-pub fn print_promotion(name: &str, results: Vec<(EResult, IoResult<String>)>, verbose: bool) -> bool {
+pub fn print_promotion(name: &str, results: Vec<(EResult, IoResult<String>)>, verbose: bool) -> (bool, usize) {
     let passed = results
         .iter()
-        .map(|&(_, ref b)| b)
-        .all(|r|  r.is_ok());
+        .all(|&(_, ref r)|  r.is_ok());
+    let nothing_done = results
+        .iter()
+        .all(|&(ref r, _)|  match r.kind {
+            ResultKind::Ok => true,
+            _ => false,
+        });
+    let change_count = results
+        .iter()
+        .filter(|&(ref r, _)| match r.kind {
+            ResultKind::Ok => false,
+            ResultKind::IoError(_) => false,
+            _ => true,
+        })
+        .count();
+    if nothing_done {
+        return (passed, change_count);
+    }
 
     if passed {
         println!("︎{} {}", "✔".green(), name);
     } else {
         println!("{} {}", "✘".red(), name);
-    }
-
-    if passed && !verbose {
-        return passed;
     }
 
     for (EResult{file_name, ..}, io_result) in results {
@@ -42,7 +54,7 @@ pub fn print_promotion(name: &str, results: Vec<(EResult, IoResult<String>)>, ve
         }
     }
 
-    passed
+    (passed, change_count)
 }
 
 pub fn print_results(name: &str, results: &[EResult], verbose: bool) {
