@@ -11,7 +11,7 @@
   - [ ] `Send`/`Sync` support
 
 # Mid Priority
-- [ ] Dont write to file if the Writer was never written to.
+- [x] Dont write to file if the Writer was never written to.
 - [ ] Account for multiple tests having the same name (in different modules)
   - [ ] std::module_path
 - [ ] `cargo expect clean` works

@@ -14,6 +14,8 @@ impl WriteRequester {
         S: AsRef<Path>,
         Fn: for<'a> FnMut(&'a mut Write) -> IoResult<()>,
     {
+        let mut v = vec![];
+        v.push(1u8);
         self.files.push(self.fs.full_path_for(path.as_ref()));
         self.fs.write(path.as_ref(), &mut f)
     }
@@ -37,6 +39,18 @@ pub struct Writer {
     inner: Vec<u8>,
     filesystem: Box<FileSystem>,
     path: PathBuf,
+    written_to: bool,
+}
+
+impl Writer {
+    fn new(filesystem: Box<FileSystem>, path: PathBuf) -> Self {
+        Writer {
+            filesystem,
+            path,
+            inner: vec![],
+            written_to: false,
+        }
+    }
 }
 
 impl Provider {
@@ -51,6 +65,7 @@ impl Provider {
 
 impl Write for Writer {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        self.written_to = true;
         self.inner.write(buf)
     }
     fn flush(&mut self) -> IoResult<()> {
@@ -60,6 +75,10 @@ impl Write for Writer {
 
 impl Drop for Writer {
     fn drop(&mut self) {
+        if !self.written_to {
+            return;
+        }
+
         let mut contents = Vec::new();
         ::std::mem::swap(&mut contents, &mut self.inner);
         // TODO: maybe don't ignore?
@@ -80,10 +99,16 @@ impl Provider {
         let name: PathBuf = name.as_ref().into();
         self.files
             .push((name.clone(), Box::new(compare), Box::new(diff)));
-        Writer {
-            inner: vec![],
-            filesystem: self.fs.duplicate(),
-            path: name,
-        }
+        Writer::new(self.fs.duplicate(), name )
     }
+}
+
+#[test]
+fn writer_does_not_write_to_filesystem_if_not_written_to() {
+    use filesystem::*;
+    let filesystem = Box::new(FakeFileSystem::new()) as Box<FileSystem>;
+    {
+        let _writer = Writer::new(filesystem.duplicate(), "foo.txt".into());
+    }
+    assert!(!filesystem.exists(Path::new("foo.txt")));
 }
