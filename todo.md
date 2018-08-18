@@ -1,7 +1,7 @@
 
 # High Priority
-- [ ] `cargo expect promote` 
-  - [ ] Acquire full paths for all files.
+- [x] `cargo expect promote` 
+  - [x] Acquire full paths for all files.
 - [x] Redo API surface to not be so janky
 - [x] Get something like concat-idents working for the stable testing macro
   - > Not needed anymore with the newer macro

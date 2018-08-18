@@ -35,7 +35,7 @@ pub fn print_promotion(name: &str, results: Vec<(EResult, IoResult<String>)>, ve
         match io_result {
             Ok(detail) => {
                 println!(
-                    "  {} {} ❯ Ok",
+                    "  {} {}",
                     "✔".green(),
                     file_name.to_string_lossy()
                 );
