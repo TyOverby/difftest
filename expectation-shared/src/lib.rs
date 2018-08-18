@@ -36,6 +36,7 @@ pub struct Result {
     pub kind: ResultKind,
 }
 
+
 impl Result {
     pub fn is_ok(&self) -> bool {
         match &self.kind {

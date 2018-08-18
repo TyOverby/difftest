@@ -5,6 +5,7 @@
 - [x] Redo API surface to not be so janky
 - [x] Get something like concat-idents working for the stable testing macro
   - > Not needed anymore with the newer macro
+- [ ] Show Cargo errors if the build failed
 - [ ] Good readme
 - [ ] Better Provider API
   - [ ] Clone-able
@@ -13,7 +14,7 @@
 
 # Mid Priority
 - [x] Dont write to file if the Writer was never written to.
-  - > Maybe this isn't such a great idea?
+  - [x] Maybe this isn't such a great idea?  Switch this back
 - [ ] Account for multiple tests having the same name (in different modules)
   - [ ] std::module_path
 - [ ] `cargo expect clean` works

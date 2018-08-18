@@ -13,7 +13,7 @@ use std::io::Write;
 
 
 #[expectation]
-fn test_with_annotation(p: &mut Provider) {
+fn test_with_annotation(mut p: Provider) {
     let mut w = p.text_writer("foo.txt");
     writeln!(w, "a");
     writeln!(w, "b");

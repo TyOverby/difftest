@@ -1,7 +1,8 @@
-use std::io::{Read, Result as IoResult, Write};
+use std::io::{Result as IoResult, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
-use expectation_shared::filesystem::FileSystem;
+use expectation_shared::filesystem::{FileSystem, ReadSeek};
 
 pub struct WriteRequester {
     pub(crate) fs: Box<FileSystem>,
@@ -21,25 +22,38 @@ impl WriteRequester {
     }
 }
 
+pub(crate) type Files = Vec<(
+        PathBuf,
+        Box<for<'a> Fn(&'a mut ReadSeek, &'a mut ReadSeek) -> IoResult<bool>>,
+        Box<
+            for<'b> Fn(&'b mut ReadSeek, &'b mut ReadSeek, &'b Path, &'b mut WriteRequester)
+                -> IoResult<()>,
+        >,
+    )>;
+
 pub struct Provider {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) root_fs: Box<FileSystem>,
     pub(crate) fs: Box<FileSystem>,
-    pub(crate) files: Vec<(
-        PathBuf,
-        Box<for<'a> Fn(&'a mut Read, &'a mut Read) -> IoResult<bool>>,
-        Box<
-            for<'b> Fn(&'b mut Read, &'b mut Read, &'b Path, &'b mut WriteRequester)
-                -> IoResult<()>,
-        >,
-    )>,
+    pub(crate) files: Arc<Mutex<Files>>,
+    cur_offset: PathBuf,
 }
 
 pub struct Writer {
     inner: Vec<u8>,
     filesystem: Box<FileSystem>,
     path: PathBuf,
-    written_to: bool,
+}
+
+impl Clone for Provider {
+    fn clone(&self) -> Provider {
+        Provider {
+            root_fs: self.root_fs.duplicate(),
+            fs: self.fs.duplicate(),
+            files: self.files.clone(),
+            cur_offset: self.cur_offset.clone(),
+        }
+    }
 }
 
 impl Writer {
@@ -48,24 +62,41 @@ impl Writer {
             filesystem,
             path,
             inner: vec![],
-            written_to: false,
         }
     }
 }
 
 impl Provider {
+    pub fn subdir<P: AsRef<Path>>(&self, path: P) -> Provider {
+        assert!(path.as_ref().is_relative(), "path is not relative");
+        Provider {
+            root_fs: self.root_fs.duplicate(),
+            fs: self.fs.duplicate().subsystem(path.as_ref()),
+            files: self.files.clone(),
+            cur_offset: self.cur_offset.join(path),
+        }
+    }
+
     pub(crate) fn new(root_fs: Box<FileSystem>, fs: Box<FileSystem>) -> Provider {
         Provider {
             root_fs,
             fs,
-            files: vec![],
+            files: Arc::new(Mutex::new(vec![])),
+            cur_offset: PathBuf::new(),
         }
+    }
+
+    pub(crate) fn take_files(&self) -> Files {
+        use std::mem::swap;
+        let mut empty = vec![];
+        let mut lock = self.files.lock().unwrap();
+        swap(&mut empty, &mut lock);
+        empty
     }
 }
 
 impl Write for Writer {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        self.written_to = true;
         self.inner.write(buf)
     }
     fn flush(&mut self) -> IoResult<()> {
@@ -75,10 +106,6 @@ impl Write for Writer {
 
 impl Drop for Writer {
     fn drop(&mut self) {
-        if !self.written_to {
-            return;
-        }
-
         let mut contents = Vec::new();
         ::std::mem::swap(&mut contents, &mut self.inner);
         // TODO: maybe don't ignore?
@@ -92,16 +119,21 @@ impl Provider {
     pub fn custom_test<S, C, D>(&mut self, name: S, compare: C, diff: D) -> Writer
     where
         S: AsRef<Path>,
-        C: for<'a> Fn(&'a mut Read, &'a mut Read) -> IoResult<bool> + 'static,
-        D: for<'b> Fn(&'b mut Read, &'b mut Read, &'b Path, &'b mut WriteRequester) -> IoResult<()>
+        C: for<'a> Fn(&'a mut (ReadSeek), &'a mut (ReadSeek)) -> IoResult<bool> + 'static,
+        D: for<'b> Fn(&'b mut (ReadSeek), &'b mut (ReadSeek), &'b Path, &'b mut WriteRequester) -> IoResult<()>
             + 'static,
     {
         let name: PathBuf = name.as_ref().into();
-        self.files
-            .push((name.clone(), Box::new(compare), Box::new(diff)));
+        let mut lock = self.files.lock().unwrap();
+        lock
+            .push((
+                self.cur_offset.join(name.clone()),
+                Box::new(compare),
+                Box::new(diff)));
         Writer::new(self.fs.duplicate(), name )
     }
 }
+
 
 #[test]
 fn writer_does_not_write_to_filesystem_if_not_written_to() {
@@ -110,5 +142,5 @@ fn writer_does_not_write_to_filesystem_if_not_written_to() {
     {
         let _writer = Writer::new(filesystem.duplicate(), "foo.txt".into());
     }
-    assert!(!filesystem.exists(Path::new("foo.txt")));
+    assert!(filesystem.exists(Path::new("foo.txt")));
 }

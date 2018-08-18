@@ -28,25 +28,6 @@ pub fn plugin_registrar(reg: &mut Registry) {
     );
 }
 
-/// Expands the `#[expectation]` attribute.
-///
-/// Expands:
-/// ```
-/// #[expectation]
-/// fn check_something(_: usize) -> bool {
-///     true
-/// }
-/// ```
-/// to:
-/// ```
-/// #[test]
-/// fn __expectation_check_something() {
-///     fn check_something(_: usize) -> bool {
-///         true
-///     }
-///     ::expectation::expectation(check_something as fn(usize) -> bool)
-/// }
-/// ```
 fn expand_meta_expectation(
     cx: &mut ExtCtxt,
     span: codemap::Span,

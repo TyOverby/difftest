@@ -4,8 +4,12 @@ use std::io::{Error as IoError, ErrorKind};
 use std::rc::Rc;
 
 use std::fs::{create_dir_all, File};
-use std::io::{Read, Result as IoResult, Write};
+use std::io::{Read, Result as IoResult, Write, Seek, Cursor};
 use std::path::{Path, PathBuf};
+
+pub trait ReadSeek: Read + Seek {}
+impl <R: Read + Seek> ReadSeek for R {}
+
 
 #[derive(Clone)]
 pub struct RealFileSystem {
@@ -22,7 +26,7 @@ pub trait FileSystem {
     fn duplicate(&self) -> Box<FileSystem>;
     fn subsystem(&self, path: &Path) -> Box<FileSystem>;
     fn exists(&self, path: &Path) -> bool;
-    fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()>;
+    fn read(&self, path: &Path, f: &mut FnMut(&mut ReadSeek) -> IoResult<()>) -> IoResult<()>;
     fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()>;
     fn full_path_for(&self, path: &Path) -> PathBuf;
     fn files(&self) -> Vec<PathBuf>;
@@ -71,7 +75,7 @@ impl FileSystem for RealFileSystem {
         path.exists()
     }
 
-    fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()> {
+    fn read(&self, path: &Path, f: &mut FnMut(&mut ReadSeek) -> IoResult<()>) -> IoResult<()> {
         let path = self.root.join(path);
         match File::open(path) {
             Ok(mut file) => f(&mut file),
@@ -126,7 +130,7 @@ impl FileSystem for FakeFileSystem {
         Ok(())
     }
 
-    fn read(&self, path: &Path, f: &mut FnMut(&mut Read) -> IoResult<()>) -> IoResult<()> {
+    fn read(&self, path: &Path, f: &mut FnMut(&mut ReadSeek) -> IoResult<()>) -> IoResult<()> {
         let path = self.root.join(path);
 
         let contents = match self.mapping.borrow().get(&path) {
@@ -139,7 +143,7 @@ impl FileSystem for FakeFileSystem {
             }
         };
 
-        f(&mut &contents[..])
+        f(&mut Cursor::new(&contents[..]))
     }
 
     fn write(&self, path: &Path, f: &mut FnMut(&mut Write) -> IoResult<()>) -> IoResult<()> {

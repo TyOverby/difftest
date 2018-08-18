@@ -4,13 +4,16 @@ extern crate serde_json;
 #[cfg(feature = "text")]
 extern crate diff;
 
+#[cfg(feature = "image")]
+extern crate image;
+
 pub mod extensions;
 mod ipc;
 mod provider;
 #[cfg(test)]
 mod test;
 
-pub use provider::Provider;
+pub use provider::{Provider};
 
 use expectation_shared::{Result as EResult, ResultKind};
 use expectation_shared::filesystem::*;
@@ -35,7 +38,7 @@ fn file_filter(file: &Path) -> bool {
     }
 }
 
-pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
+pub fn expect<F: FnOnce(Provider)>(name: &str, f: F) {
     if !name.starts_with("expectation_test_") {
         panic!("expectation test {} is an invalid test name.  It must start with \"expectation_test_\"", name);
     }
@@ -51,8 +54,8 @@ pub fn expect<F: FnOnce(&mut Provider)>(name: &str, f: F) {
     let act_fs = top_fs
         .subsystem(Path::new("actual"))
         .subsystem(Path::new(name));
-    let mut provider = Provider::new(top_fs.duplicate(), act_fs.duplicate());
-    f(&mut provider);
+    let provider = Provider::new(top_fs.duplicate(), act_fs.duplicate());
+    f(provider.clone());
 
     let mut succeeded = true;
     let results = validate(name, top_fs, provider, file_filter);
@@ -109,6 +112,12 @@ macro_rules! expectation_test {
             $crate::expect(stringify!($name), (|$provider: $type| $body));
         }
     };
+    (fn $name:ident (mut $provider:ident : $type:ty) $body:tt) => {
+        #[test]
+        fn $name() {
+            $crate::expect(stringify!($name), (|mut $provider: $type| $body));
+        }
+    };
 }
 
 fn validate<Fi: Fn(&Path) -> bool>(
@@ -129,7 +138,7 @@ fn validate<Fi: Fn(&Path) -> bool>(
     #[allow(unused_variables)]
     let fs = ();
 
-    for (file, eq, diff) in provider.files {
+    for (file, eq, diff) in provider.take_files() {
         if !filter(&file) || visited.contains(&file) {
             continue;
         }

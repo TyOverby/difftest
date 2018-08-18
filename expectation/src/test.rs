@@ -54,16 +54,16 @@ pub fn difftest_prepare<F: FnOnce(&mut Provider)>(name: &str, f: F) -> FakeFileS
 }
 
 #[cfg(test)]
-pub fn difftest_validate<F: FnOnce(&mut Provider)>(name: &str, f: F) -> Vec<EResult> {
+pub fn difftest_validate<F: FnOnce(Provider)>(name: &str, f: F) -> Vec<EResult> {
     let top_fs = filesystem::FakeFileSystem::new();
-    let mut provider = provider::Provider::new(
+    let provider = provider::Provider::new(
         top_fs.duplicate(),
         top_fs
             .subsystem(Path::new("actual"))
             .subsystem(Path::new(name)),
     );
-    f(&mut provider);
-    validate(name, top_fs, provider, |_| true)
+    f(provider.clone());
+    validate(name, top_fs.duplicate(), provider, |_| true)
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn validate_on_no_files() {
 #[test]
 fn validate_one_file_expected_not_found() {
     use std::io::Write;
-    let results = difftest_validate("hi", |provider| {
+    let results = difftest_validate("hi", |mut provider| {
         let mut w = provider.custom_test(
             "foo.txt",
             |_, _| unimplemented!(),
@@ -165,9 +165,33 @@ fn validate_one_file_expected_not_found() {
 }
 
 #[test]
-fn validate_one_file_actual_not_found() {
+fn validate_one_file_expected_not_found_subdir() {
     use std::io::Write;
     let results = difftest_validate("hi", |provider| {
+        let mut provider = provider.subdir("hello");
+        let mut w = provider.custom_test(
+            "foo.txt",
+            |_, _| unimplemented!(),
+            |_, _, _, _| unimplemented!(),
+        );
+        write!(w, "hello world").unwrap();
+    });
+
+    assert_eq!(
+        results,
+        vec![EResult::expected_not_found(
+            "hi",
+            "hello/foo.txt",
+            "/actual/hi/hello/foo.txt",
+            "/expected/hi/hello/foo.txt",
+        )]
+    );
+}
+
+#[test]
+fn validate_one_file_actual_not_found() {
+    use std::io::Write;
+    let results = difftest_validate("hi", |mut provider| {
         provider
             .root_fs
             .write(Path::new("expected/hi/something_else.txt"), &mut |writer| {
@@ -204,7 +228,7 @@ fn validate_one_file_actual_not_found() {
 #[test]
 fn validate_one_file_diff_is_bad() {
     use std::io::Write;
-    let results = difftest_validate("hi", |provider| {
+    let results = difftest_validate("hi", |mut provider| {
         provider
             .root_fs
             .write(Path::new("expected/hi/foo.txt"), &mut |writer| {
@@ -234,7 +258,7 @@ fn validate_one_file_diff_is_bad() {
 #[test]
 fn validate_one_file_diff_is_bad_with_text_extension() {
     use std::io::Write;
-    let results = difftest_validate("hi", |provider| {
+    let results = difftest_validate("hi", |mut provider| {
         provider
             .root_fs
             .write(Path::new("expected/hi/foo.txt"), &mut |writer| {

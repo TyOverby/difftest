@@ -6,7 +6,7 @@ description = "Expectation Tests"
 license = "MIT/Apache-2.0"
 
 [features]
-default = ["text"]
+default = ["text", "image"]
 
 text = ["diff"]
 
@@ -16,6 +16,10 @@ serde_json="1.*.*"
 
 [dependencies.diff]
 version = "0.1.*"
+optional = true
+
+[dependencies.image]
+version = "0.19.*"
 optional = true
 
 [dependencies.expectation-shared]
