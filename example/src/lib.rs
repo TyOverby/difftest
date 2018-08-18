@@ -21,12 +21,3 @@ fn test_with_annotation(p: &mut Provider) {
     writeln!(w, "d");
     writeln!(w, "e");
 }
-
-/*
-expectation_test! {
-    fn expectation_test_foo(p: &mut Provider) {
-        let mut w = p.text_writer("foo.txt");
-        writeln!(w, "hello world");
-    }
-}
-*/

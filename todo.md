@@ -13,6 +13,7 @@
 
 # Mid Priority
 - [x] Dont write to file if the Writer was never written to.
+  - > Maybe this isn't such a great idea?
 - [ ] Account for multiple tests having the same name (in different modules)
   - [ ] std::module_path
 - [ ] `cargo expect clean` works
