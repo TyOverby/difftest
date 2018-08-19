@@ -8,11 +8,11 @@ use std::path::Path;
 use image::*;
 
 pub trait ImageDiffExtension {
-    fn png_writer<N>(&mut self, filename: N) -> Writer
+    fn png_writer<N>(&self, filename: N) -> Writer
         where
             N: AsRef<Path>;
 
-    fn rgb_image<N>(&mut self, filename: N, image: RgbImage) -> IoResult<()>
+    fn rgb_image<N>(&self, filename: N, image: RgbImage) -> IoResult<()>
         where
             N: AsRef<Path>
     {
@@ -22,7 +22,7 @@ pub trait ImageDiffExtension {
         Ok(())
     }
 
-    fn rgba_image<N>(&mut self, filename: N, image: RgbaImage) -> IoResult<()>
+    fn rgba_image<N>(&self, filename: N, image: RgbaImage) -> IoResult<()>
         where
             N: AsRef<Path>
     {
@@ -34,7 +34,7 @@ pub trait ImageDiffExtension {
 }
 
 impl ImageDiffExtension for Provider {
-    fn png_writer<S>(&mut self, filename: S) -> Writer
+    fn png_writer<S>(&self, filename: S) -> Writer
         where
             S: AsRef<Path>,
     {

@@ -116,7 +116,7 @@ impl Drop for Writer {
 }
 
 impl Provider {
-    pub fn custom_test<S, C, D>(&mut self, name: S, compare: C, diff: D) -> Writer
+    pub fn custom_test<S, C, D>(&self, name: S, compare: C, diff: D) -> Writer
     where
         S: AsRef<Path>,
         C: for<'a> Fn(&'a mut (ReadSeek), &'a mut (ReadSeek)) -> IoResult<bool> + 'static,

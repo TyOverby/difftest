@@ -8,11 +8,11 @@ use std::path::Path;
 use diff;
 
 pub trait TextDiffExtension {
-    fn text_writer<N>(&mut self, filename: N) -> Writer
+    fn text_writer<N>(&self, filename: N) -> Writer
     where
         N: AsRef<Path>;
 
-    fn text<N, S>(&mut self, filename: N, text: S) -> IoResult<()>
+    fn text<N, S>(&self, filename: N, text: S) -> IoResult<()>
     where
         N: AsRef<Path>,
         S: AsRef<str>,
@@ -21,7 +21,7 @@ pub trait TextDiffExtension {
         write!(w, "{}", text.as_ref())
     }
 
-    fn debug<N, D>(&mut self, filename: N, object: D) -> IoResult<()>
+    fn debug<N, D>(&self, filename: N, object: D) -> IoResult<()>
     where
         N: AsRef<Path>,
         D: Debug,
@@ -32,7 +32,7 @@ pub trait TextDiffExtension {
 }
 
 impl TextDiffExtension for Provider {
-    fn text_writer<S>(&mut self, filename: S) -> Writer
+    fn text_writer<S>(&self, filename: S) -> Writer
     where
         S: AsRef<Path>,
     {

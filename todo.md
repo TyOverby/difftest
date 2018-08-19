@@ -5,14 +5,17 @@
 - [x] Redo API surface to not be so janky
 - [x] Get something like concat-idents working for the stable testing macro
   - > Not needed anymore with the newer macro
-- [ ] Show Cargo errors if the build failed
+- [ ] Better support for "cargo test" failing
+  - [ ] Failure happened during build (`cargo check --tests` should suffice)
+  - [ ] Failure happened during test (cargo-expect should at least show that a test failed...)
 - [ ] Good readme
 - [ ] Better Provider API
-  - [ ] Clone-able
-  - [ ] "Sub-Directory" able
+  - [x] Clone-able
+  - [x] "Sub-Directory" able
   - [ ] `Send`/`Sync` support
 
 # Mid Priority
+- [ ] Sort the files that had conflicts before printing (stabilize order)
 - [x] Dont write to file if the Writer was never written to.
   - [x] Maybe this isn't such a great idea?  Switch this back
 - [ ] Account for multiple tests having the same name (in different modules)
