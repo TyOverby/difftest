@@ -25,6 +25,9 @@ pub struct Specifier {
 
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
+
+    #[structopt(long = "release")]
+    release: bool,
 }
 
 #[derive(StructOpt, Debug)]

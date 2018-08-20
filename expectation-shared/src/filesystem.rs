@@ -1,15 +1,13 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::{Error as IoError, ErrorKind};
+use std::fs::{create_dir_all, File};
+use std::io::{BufRead, Cursor, Result as IoResult, Seek, Write};
+use std::io::{BufReader, BufWriter, Error as IoError, ErrorKind};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use std::fs::{create_dir_all, File};
-use std::io::{Read, Result as IoResult, Write, Seek, Cursor};
-use std::path::{Path, PathBuf};
-
-pub trait ReadSeek: Read + Seek {}
-impl <R: Read + Seek> ReadSeek for R {}
-
+pub trait ReadSeek: Seek + BufRead {}
+impl<R: BufRead + Seek> ReadSeek for R {}
 
 #[derive(Clone)]
 pub struct RealFileSystem {
@@ -42,7 +40,6 @@ pub trait FileSystem {
         })
     }
 }
-
 
 impl FakeFileSystem {
     pub fn new() -> Self {
@@ -78,7 +75,10 @@ impl FileSystem for RealFileSystem {
     fn read(&self, path: &Path, f: &mut FnMut(&mut ReadSeek) -> IoResult<()>) -> IoResult<()> {
         let path = self.root.join(path);
         match File::open(path) {
-            Ok(mut file) => f(&mut file),
+            Ok(file) => {
+                let mut file = BufReader::new(file);
+                f(&mut file)
+            }
             Err(e) => Err(e),
         }
     }
@@ -88,7 +88,10 @@ impl FileSystem for RealFileSystem {
         create_dir_all(path.parent().unwrap())?;
 
         match File::create(path) {
-            Ok(mut file) => f(&mut file),
+            Ok(file) => {
+                let mut file = BufWriter::new(file);
+                f(&mut file)
+            }
             Err(e) => Err(e),
         }
     }
