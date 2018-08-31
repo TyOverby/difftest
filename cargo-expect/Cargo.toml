@@ -14,3 +14,4 @@ colored = "1.6.1"
 
 [dependencies.expectation-shared]
 path = "../expectation-shared"
+version = "0.*.*"

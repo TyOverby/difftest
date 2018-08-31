@@ -4,10 +4,10 @@ extern crate expectation;
 extern crate expectation_plugin;
 
 use expectation::{extensions::*, *};
-use expectation_plugin::expectation;
+use expectation_plugin::expectation_test;
 use std::io::Write;
 
-#[expectation]
+#[expectation_test]
 fn test_with_annotation(p: Provider) {
     let mut w = p.text_writer("foo.txt");
     writeln!(w, "a");
