@@ -9,8 +9,8 @@ extern crate rustc_plugin;
 extern crate syntax;
 
 use syntax::ast;
+use syntax::Span;
 use syntax::ast::{Ident, ItemKind, PatKind, Stmt, StmtKind, TyKind};
-use syntax::codemap;
 use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
 use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
@@ -30,7 +30,7 @@ pub fn plugin_registrar(reg: &mut Registry) {
 
 fn expand_meta_expectation(
     cx: &mut ExtCtxt,
-    span: codemap::Span,
+    span: Span,
     _: &ast::MetaItem,
     annot_item: Annotatable,
 ) -> Annotatable {
@@ -67,7 +67,7 @@ fn expand_meta_expectation(
 
 fn wrap_item(
     cx: &mut ExtCtxt,
-    span: codemap::Span,
+    span: Span,
     item: &ast::Item,
     inner_ident: P<ast::Expr>,
 ) -> Annotatable {

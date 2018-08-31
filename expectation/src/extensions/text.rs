@@ -75,9 +75,9 @@ fn text_diff<R1: Read, R2: Read>(
     write_requester.request(add_extension(path, ".diff"), |w| {
         for diff in diff::lines(&s1, &s2) {
             match diff {
-                diff::Result::Left(l) => writeln!(w, "-{}", l)?,
+                diff::Result::Left(l) => writeln!(w, "+{}", l)?,
                 diff::Result::Both(l, _) => writeln!(w, " {}", l)?,
-                diff::Result::Right(r) => writeln!(w, "+{}", r)?,
+                diff::Result::Right(r) => writeln!(w, "-{}", r)?,
             }
         }
         Ok(())

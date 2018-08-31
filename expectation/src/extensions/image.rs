@@ -2,19 +2,19 @@ use super::super::provider::{Provider, WriteRequester};
 use super::super::*;
 use expectation_shared::filesystem::ReadSeek;
 
-use std::io::{Result as IoResult, BufReader};
+use std::io::{BufReader, Result as IoResult};
 use std::path::Path;
 
 use image::*;
 
 pub trait ImageDiffExtension {
     fn png_writer<N>(&self, filename: N) -> Writer
-        where
-            N: AsRef<Path>;
+    where
+        N: AsRef<Path>;
 
     fn rgb_image<N>(&self, filename: N, image: RgbImage) -> IoResult<()>
-        where
-            N: AsRef<Path>
+    where
+        N: AsRef<Path>,
     {
         let mut w = self.png_writer(filename);
         let dyn_image = DynamicImage::ImageRgb8(image);
@@ -23,8 +23,8 @@ pub trait ImageDiffExtension {
     }
 
     fn rgba_image<N>(&self, filename: N, image: RgbaImage) -> IoResult<()>
-        where
-            N: AsRef<Path>
+    where
+        N: AsRef<Path>,
     {
         let mut w = self.png_writer(filename);
         let dyn_image = DynamicImage::ImageRgba8(image);
@@ -35,8 +35,8 @@ pub trait ImageDiffExtension {
 
 impl ImageDiffExtension for Provider {
     fn png_writer<S>(&self, filename: S) -> Writer
-        where
-            S: AsRef<Path>,
+    where
+        S: AsRef<Path>,
     {
         self.custom_test(
             filename,
@@ -58,8 +58,8 @@ fn image_eq<R1: ReadSeek, R2: ReadSeek>(r1: R1, r2: R2) -> IoResult<bool> {
             if i1.width() != i2.width() || i1.height() != i2.height() {
                 return Ok(false);
             }
-            for x in 0 .. i1.width() {
-                for y in 0 .. i1.height() {
+            for x in 0..i1.width() {
+                for y in 0..i1.height() {
                     if i1.get_pixel(x, y) != i2.get_pixel(x, y) {
                         return Ok(false);
                     }
@@ -70,17 +70,15 @@ fn image_eq<R1: ReadSeek, R2: ReadSeek>(r1: R1, r2: R2) -> IoResult<bool> {
             if i1.width() != i2.width() || i1.height() != i2.height() {
                 return Ok(false);
             }
-            for x in 0 .. i1.width() {
-                for y in 0 .. i1.height() {
+            for x in 0..i1.width() {
+                for y in 0..i1.height() {
                     if i1.get_pixel(x, y) != i2.get_pixel(x, y) {
                         return Ok(false);
                     }
                 }
             }
         }
-        (_, _) => {
-            return Ok(false)
-        }
+        (_, _) => return Ok(false),
     }
 
     Ok(true)
@@ -116,7 +114,9 @@ fn image_diff<R1: ReadSeek, R2: ReadSeek>(
                     Ok(())
                 });
             }
-            panic!("images arent pixel-by-pixel equal");
+            // TODO: implement image diffing
+            Ok(())
+            //panic!("images arent pixel-by-pixel equal");
         }
         (DynamicImage::ImageRgba8(i1), DynamicImage::ImageRgba8(i2)) => {
             if i1.width() != i2.width() || i1.height() != i2.height() {
@@ -127,7 +127,9 @@ fn image_diff<R1: ReadSeek, R2: ReadSeek>(
                     Ok(())
                 });
             }
-            panic!("images arent pixel-by-pixel equal");
+            // TODO: implement image diffing
+            Ok(())
+            //panic!("images arent pixel-by-pixel equal");
         }
         (DynamicImage::ImageRgb8(_), DynamicImage::ImageRgba8(_)) => {
             return write_requester.request(path.join("img-format.txt"), |w| {
@@ -145,6 +147,6 @@ fn image_diff<R1: ReadSeek, R2: ReadSeek>(
                 Ok(())
             });
         }
-        (_, _) => {panic!()}
+        (_, _) => panic!(),
     }
 }
