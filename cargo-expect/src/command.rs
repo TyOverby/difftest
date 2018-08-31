@@ -7,7 +7,7 @@ use promote::promote;
 use serde_json;
 use std::io::Result as IoResult;
 use std::net::TcpListener;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::thread::spawn;
 
 fn get_listener() -> IoResult<TcpListener> {
@@ -77,17 +77,24 @@ fn prepare_command(spec: Specifier, send_ser: String) -> Command {
     command.stderr(Stdio::null());
     command
 }
-fn run_build(release: bool) {
+
+fn run_build(release: bool) -> IoResult<ExitStatus> {
     let mut command = Command::new("cargo");
     command.arg("build");
     command.arg("--lib");
     if release {
         command.arg("--release");
     }
+    println!("Building Library");
+    let result = command.spawn()?.wait()?;
+    Ok(result)
 }
 
-pub fn perform_promote(spec: Specifier) -> bool {
-    run_build(spec.release);
+pub fn perform_promote(spec: Specifier) -> IoResult<bool> {
+    if !run_build(spec.release)?.success() {
+        return Ok(false);
+    }
+    println!("Promoting Library");
 
     let verbose = spec.verbose;
     let (send_ser, messages) = tcp_listen().unwrap();
@@ -128,8 +135,7 @@ pub fn perform_promote(spec: Specifier) -> bool {
                 .map(|r| {
                     let p = promote(&r.kind, fs.duplicate());
                     (r, p)
-                })
-                .collect();
+                }).collect();
             let (s, c_count) = ::output::print_promotion(&name, rs, verbose);
             success &= s;
             files_promoted_count += c_count;
@@ -140,11 +146,15 @@ pub fn perform_promote(spec: Specifier) -> bool {
 
     println!("{} Files Promoted", files_promoted_count);
 
-    success
+    Ok(success)
 }
 
-pub fn perform_run(spec: Specifier) -> bool {
-    run_build(spec.release);
+pub fn perform_run(spec: Specifier) -> IoResult<bool> {
+    if !run_build(spec.release)?.success() {
+        return Ok(false);
+    }
+    println!("Running Library");
+
     let verbose = spec.verbose;
     let (send_ser, messages) = tcp_listen().unwrap();
     let command = prepare_command(spec, send_ser);
@@ -218,5 +228,5 @@ pub fn perform_run(spec: Specifier) -> bool {
         total_files
     );
 
-    failed_suites == 0
+    Ok(failed_suites == 0)
 }

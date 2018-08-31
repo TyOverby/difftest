@@ -13,10 +13,10 @@ mod provider;
 #[cfg(test)]
 mod test;
 
-pub use provider::{Provider};
+pub use provider::Provider;
 
-use expectation_shared::{Result as EResult, ResultKind};
 use expectation_shared::filesystem::*;
+use expectation_shared::{Result as EResult, ResultKind};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -49,7 +49,7 @@ pub fn expect<F: FnOnce(Provider)>(name: &str, f: F) {
     }
 
     let top_fs = RealFileSystem {
-        root: Path::new("./").canonicalize().unwrap()
+        root: Path::new("./").canonicalize().unwrap(),
     }.subsystem(Path::new("expectation-tests"));
     let act_fs = top_fs
         .subsystem(Path::new("actual"))
@@ -102,22 +102,6 @@ pub fn expect<F: FnOnce(Provider)>(name: &str, f: F) {
     if !succeeded {
         panic!("Expectation test found some errors.");
     }
-}
-
-#[macro_export]
-macro_rules! expectation_test {
-    (fn $name:ident ($provider:ident : $type:ty) $body:tt) => {
-        #[test]
-        fn $name() {
-            $crate::expect(stringify!($name), (|$provider: $type| $body));
-        }
-    };
-    (fn $name:ident (mut $provider:ident : $type:ty) $body:tt) => {
-        #[test]
-        fn $name() {
-            $crate::expect(stringify!($name), (|mut $provider: $type| $body));
-        }
-    };
 }
 
 fn validate<Fi: Fn(&Path) -> bool>(

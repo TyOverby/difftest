@@ -1,19 +1,14 @@
-#![feature(plugin)]
-#![plugin(expectation_plugin)]
+#![allow(dead_code, unused_imports)]
 
-#[macro_use]
 extern crate expectation;
+extern crate expectation_plugin;
 
-#[cfg(test)]
-use expectation::extensions::*;
-#[cfg(test)]
-use expectation::*;
-#[cfg(test)]
+use expectation::{extensions::*, *};
+use expectation_plugin::expectation;
 use std::io::Write;
 
-
 #[expectation]
-fn test_with_annotation(mut p: Provider) {
+fn test_with_annotation(p: Provider) {
     let mut w = p.text_writer("foo.txt");
     writeln!(w, "a");
     writeln!(w, "b");

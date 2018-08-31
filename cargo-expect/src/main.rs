@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate structopt;
 extern crate expectation_shared;
 extern crate serde;
@@ -7,6 +6,7 @@ extern crate serde_json;
 extern crate crossbeam;
 extern crate colored;
 
+use std::io::Result as IoResult;
 use structopt::StructOpt;
 mod command;
 mod output;
@@ -58,7 +58,7 @@ pub enum Command {
     Clean,
 }
 
-fn main() {
+fn main() -> IoResult<()> {
     let mut args: Vec<_> = ::std::env::args_os().collect();
     if args.len() >= 2 && args[1] == "expect" {
         args.remove(1);
@@ -67,17 +67,18 @@ fn main() {
     let c = Command::from_iter(args);
     match c {
         Command::Promote(spec) => {
-            let good = command::perform_promote(spec);
+            let good = command::perform_promote(spec)?;
             if !good {
                 ::std::process::exit(1);
             }
         }
         Command::Run(spec) => {
-            let good = command::perform_run(spec);
+            let good = command::perform_run(spec)?;
             if !good {
                 ::std::process::exit(1);
             }
         }
         _ => panic!(),
     }
+    Ok(())
 }
