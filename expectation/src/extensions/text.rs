@@ -1,11 +1,11 @@
 use super::super::provider::{Provider, WriteRequester};
 use super::super::*;
+use super::escape_html;
 
+use diff;
 use std::fmt::Debug;
 use std::io::{Read, Result as IoResult, Write};
 use std::path::Path;
-
-use diff;
 
 pub trait TextDiffExtension {
     fn text_writer<N>(&self, filename: N) -> Writer
@@ -69,17 +69,36 @@ fn text_diff<R1: Read, R2: Read>(
 ) -> IoResult<()> {
     let mut s1 = String::new();
     let mut s2 = String::new();
+    let mut diff = Vec::new();
     r1.read_to_string(&mut s1)?;
     r2.read_to_string(&mut s2)?;
 
-    write_requester.request(add_extension(path, ".diff"), |w| {
-        for diff in diff::lines(&s1, &s2) {
-            match diff {
-                diff::Result::Left(l) => writeln!(w, "+{}", l)?,
-                diff::Result::Both(l, _) => writeln!(w, " {}", l)?,
-                diff::Result::Right(r) => writeln!(w, "-{}", r)?,
-            }
+    for d in diff::lines(&s1, &s2) {
+        match d {
+            diff::Result::Left(l) => writeln!(diff, "+{}", l)?,
+            diff::Result::Both(l, _) => writeln!(diff, " {}", l)?,
+            diff::Result::Right(r) => writeln!(diff, "-{}", r)?,
         }
-        Ok(())
-    })
+    }
+
+    let diff = String::from_utf8(diff).unwrap();
+
+    write_requester.request(add_extension(path, ".diff"), |w| write!(w, "{}", diff))?;
+
+    write_requester.set_html_renderer(move |_, _, _| {
+        let mut html = Vec::new();
+
+        write!(html, "<h3> Actual </h3>");
+        write!(html, "<code><pre> {} </pre></code>", escape_html(&s1));
+
+        write!(html, "<h3> Expected </h3>");
+        write!(html, "<code><pre> {} </pre></code>", escape_html(&s2));
+
+        write!(html, "<h3> Diff </h3>");
+        write!(html, "<code><pre> {} </pre></code>", escape_html(&diff));
+
+        String::from_utf8(html).unwrap()
+    });
+
+    Ok(())
 }

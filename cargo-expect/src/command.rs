@@ -2,11 +2,12 @@ use super::Specifier;
 use colored::*;
 use crossbeam::channel::{unbounded, Receiver};
 use expectation_shared::filesystem::*;
-use expectation_shared::Result as EResult;
+use expectation_shared::Message;
 use promote::promote;
 use serde_json;
 use std::io::Result as IoResult;
 use std::net::TcpListener;
+use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::thread::spawn;
 
@@ -21,10 +22,9 @@ fn get_listener() -> IoResult<TcpListener> {
     TcpListener::bind("localhost:{9100}")
 }
 
-pub fn tcp_listen() -> IoResult<(String, Receiver<(String, Vec<EResult>)>)> {
+pub fn tcp_listen() -> IoResult<(String, Receiver<Message>)> {
     let listener = get_listener()?;
     let addr = listener.local_addr();
-
     let (sender, receiver) = unbounded();
 
     spawn(move || loop {
@@ -44,7 +44,7 @@ pub fn tcp_listen() -> IoResult<(String, Receiver<(String, Vec<EResult>)>)> {
             }
         }
     });
-    Ok((format!("{}", addr.unwrap()), receiver))
+    Ok((format!("{}", addr?), receiver))
 }
 
 pub fn process_listen(mut command: Command) -> IoResult<Receiver<()>> {
@@ -82,12 +82,42 @@ fn run_build(release: bool) -> IoResult<ExitStatus> {
     let mut command = Command::new("cargo");
     command.arg("build");
     command.arg("--lib");
+    command.arg("--tests");
     if release {
         command.arg("--release");
     }
     println!("Building Library");
     let result = command.spawn()?.wait()?;
     Ok(result)
+}
+
+pub fn fold_wait<F, R>(messages: Receiver<Message>, done: Receiver<()>, mut init: R, f: F) -> R
+where
+    F: Fn(R, Message) -> R,
+{
+    'a: loop {
+        select![
+            recv(messages, item) => {
+                match item {
+                    Some(message) => {
+                        init = f(init, message);
+                    },
+                    None => { break 'a; }
+                }
+            },
+            recv(done, _) => { break 'a; }
+        ]
+    }
+
+    loop {
+        if let Some(message) = messages.try_recv() {
+            init = f(init, message);
+        } else {
+            break;
+        }
+    }
+
+    init
 }
 
 pub fn perform_promote(spec: Specifier) -> IoResult<bool> {
@@ -97,52 +127,34 @@ pub fn perform_promote(spec: Specifier) -> IoResult<bool> {
     println!("Promoting Library");
 
     let verbose = spec.verbose;
-    let (send_ser, messages) = tcp_listen().unwrap();
+    let (send_ser, messages) = tcp_listen()?;
     let command = prepare_command(spec, send_ser);
-    let done_recvr = process_listen(command);
+    let done_recvr = process_listen(command)?;
 
     let fs = RealFileSystem { root: "/".into() };
-    let mut success = true;
-    let mut files_promoted_count = 0;
 
-    'a: loop {
-        select![
-            recv(messages, item) => {
-                match item {
-                    Some((name, results)) => {
-                        let rs: Vec<_> =
-                            results.into_iter()
-                                   .map(|r| {
-                                       let p = promote(&r.kind, fs.duplicate());
-                                       (r, p)
-                                   })
-                                   .collect();
-                        let (s, c_count) =  ::output::print_promotion(&name, rs, verbose);
-                        success &= s;
-                        files_promoted_count += c_count;
-                    },
-                    None => { break 'a; }
+    let (success, files_promoted_count) = fold_wait(
+        messages,
+        done_recvr,
+        (true, 0),
+        |(mut success, mut files_promoted_count), message| {
+            match message {
+                Message::TestFinished { name, result } => {
+                    let rs: Vec<_> = result
+                        .into_iter()
+                        .map(|r| {
+                            let p = promote(&r.kind, fs.duplicate());
+                            (r, p)
+                        }).collect();
+                    let (s, c_count) = ::output::print_promotion(&name, rs, verbose);
+                    success &= s;
+                    files_promoted_count += c_count;
                 }
-            },
-            recv(done_recvr, _) => { break 'a; }
-        ]
-    }
-
-    loop {
-        if let Some((name, results)) = messages.try_recv() {
-            let rs: Vec<_> = results
-                .into_iter()
-                .map(|r| {
-                    let p = promote(&r.kind, fs.duplicate());
-                    (r, p)
-                }).collect();
-            let (s, c_count) = ::output::print_promotion(&name, rs, verbose);
-            success &= s;
-            files_promoted_count += c_count;
-        } else {
-            break;
-        }
-    }
+                _ => unimplemented!(),
+            }
+            (success, files_promoted_count)
+        },
+    );
 
     println!("{} Files Promoted", files_promoted_count);
 
@@ -156,42 +168,32 @@ pub fn perform_run(spec: Specifier) -> IoResult<bool> {
     println!("Running Library");
 
     let verbose = spec.verbose;
-    let (send_ser, messages) = tcp_listen().unwrap();
+    let (send_ser, messages) = tcp_listen()?;
     let command = prepare_command(spec, send_ser);
-    let done_recvr = process_listen(command);
+    let done_recvr = process_listen(command)?;
 
-    let mut total_results = vec![];
-
-    'a: loop {
-        select![
-            recv(messages, item) => {
-                match item {
-                    Some((name, results)) => {
-                        ::output::print_results(&name, &results, verbose);
-                        total_results.push((name, results));
-                    },
-                    None => { break 'a; }
+    let total_results = fold_wait(
+        messages,
+        done_recvr,
+        vec![],
+        |mut total_results, message| {
+            match message {
+                Message::TestFinished { name, result } => {
+                    ::output::print_results(&name, &result, verbose);
+                    total_results.push((name, result));
                 }
-            },
-            recv(done_recvr, _) => { break 'a; }
-        ]
-    }
-
-    loop {
-        if let Some((name, results)) = messages.try_recv() {
-            ::output::print_results(&name, &results, verbose);
-            total_results.push((name, results));
-        } else {
-            break;
-        }
-    }
+                _ => unimplemented!(),
+            }
+            total_results
+        },
+    );
 
     let mut total_suites = 0;
     let mut failed_suites = 0;
     let mut total_files = 0;
     let mut failed_files = 0;
 
-    for (_, results) in total_results {
+    for (_, results) in &total_results {
         total_suites += 1;
         let mut success = true;
         for file in results {
@@ -227,6 +229,11 @@ pub fn perform_run(spec: Specifier) -> IoResult<bool> {
         total_files - failed_files,
         total_files
     );
+
+    let fs = RealFileSystem { root: "./".into() };
+    fs.write(Path::new("./out.html"), &mut |w| {
+        super::html::format_html(&total_results, w)
+    })?;
 
     Ok(failed_suites == 0)
 }

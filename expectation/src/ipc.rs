@@ -1,4 +1,4 @@
-use expectation_shared::Result as EResult;
+use expectation_shared::{Message, Result as EResult};
 use serde_json;
 use std::env;
 use std::net::TcpStream;
@@ -21,8 +21,14 @@ fn get_stream() -> Option<TcpStream> {
     Some(stream)
 }
 
-pub fn send(test_name: &str, results: &Vec<EResult>) {
+pub fn send(test_name: &str, results: Vec<EResult>) {
     if let Some(mut s) = get_stream() {
-        serde_json::to_writer_pretty(&mut s, &(test_name, results)).unwrap();
+        serde_json::to_writer_pretty(
+            &mut s,
+            &Message::TestFinished {
+                name: test_name.into(),
+                result: results,
+            },
+        ).unwrap();
     }
 }

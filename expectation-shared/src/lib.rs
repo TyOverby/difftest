@@ -7,35 +7,42 @@ pub mod filesystem;
 
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Double {
     pub actual: PathBuf,
     pub expected: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct Tripple {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct Difference {
     pub actual: PathBuf,
     pub expected: PathBuf,
     pub diffs: Vec<PathBuf>,
+    pub html: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum ResultKind {
     Ok,
     ExpectedNotFound(Double),
     ActualNotFound(Double),
-    Difference(Tripple),
+    Difference(Difference),
     IoError(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Result {
     pub test_name: String,
     pub file_name: PathBuf,
     pub kind: ResultKind,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub enum Message {
+    TestStarted { name: String },
+    TestFinished { name: String, result: Vec<Result> },
+    TestPanicked { name: String, details: String },
+}
 
 impl Result {
     pub fn is_ok(&self) -> bool {
@@ -97,6 +104,7 @@ impl Result {
         actual: P2,
         expected: P3,
         diffs: Vec<PathBuf>,
+        html: Option<String>,
     ) -> Self
     where
         N: Into<String>,
@@ -107,10 +115,11 @@ impl Result {
         Result {
             test_name: name.into(),
             file_name: file.into(),
-            kind: ResultKind::Difference(Tripple {
+            kind: ResultKind::Difference(Difference {
                 actual: actual.into(),
                 expected: expected.into(),
-                diffs: diffs,
+                diffs,
+                html,
             }),
         }
     }

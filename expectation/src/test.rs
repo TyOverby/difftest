@@ -1,8 +1,8 @@
 use super::extensions::*;
 use super::*;
+use expectation_shared::filesystem;
 use expectation_shared::Result as EResult;
 use std::io::{Read, Result as IoResult};
-use expectation_shared::filesystem;
 
 fn byte_for_byte_equality<R1: Read, R2: Read>(mut r1: R1, mut r2: R2) -> IoResult<bool> {
     let mut v1 = vec![];
@@ -251,6 +251,7 @@ fn validate_one_file_diff_is_bad() {
             "/actual/hi/foo.txt",
             "/expected/hi/foo.txt",
             vec!["/diff/hi/foo.txt.diff".into()],
+            None,
         )]
     );
 }
@@ -277,6 +278,7 @@ fn validate_one_file_diff_is_bad_with_text_extension() {
             "/actual/hi/foo.txt",
             "/expected/hi/foo.txt",
             vec!["/diff/hi/foo.txt.diff".into()],
+            Some("<h2> Actual </h2><code> hello world <code><h2> Expected </h2><code> goodbye found <code><h2> Diff </h2><code> &#43;hello world\n-goodbye found\n <code>".into())
         )]
     );
 }

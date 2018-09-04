@@ -1,7 +1,7 @@
-extern crate structopt;
 extern crate expectation_shared;
 extern crate serde;
 extern crate serde_json;
+extern crate structopt;
 #[macro_use]
 extern crate crossbeam;
 extern crate colored;
@@ -9,6 +9,7 @@ extern crate colored;
 use std::io::Result as IoResult;
 use structopt::StructOpt;
 mod command;
+mod html;
 mod output;
 mod promote;
 

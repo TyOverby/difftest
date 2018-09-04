@@ -7,6 +7,7 @@ use expectation_shared::filesystem::{FileSystem, ReadSeek};
 pub struct WriteRequester {
     pub(crate) fs: Box<FileSystem>,
     pub(crate) files: Vec<PathBuf>,
+    pub(crate) html_renderer: Option<Box<Fn(&Path, &Path, &[PathBuf]) -> String>>,
 }
 
 impl WriteRequester {
@@ -20,16 +21,22 @@ impl WriteRequester {
         self.files.push(self.fs.full_path_for(path.as_ref()));
         self.fs.write(path.as_ref(), &mut f)
     }
+    pub fn set_html_renderer<F>(&mut self, f: F)
+    where
+        F: Fn(&Path, &Path, &[PathBuf]) -> String + 'static,
+    {
+        self.html_renderer = Some(Box::new(f));
+    }
 }
 
 pub(crate) type Files = Vec<(
-        PathBuf,
-        Box<for<'a> Fn(&'a mut ReadSeek, &'a mut ReadSeek) -> IoResult<bool>>,
-        Box<
-            for<'b> Fn(&'b mut ReadSeek, &'b mut ReadSeek, &'b Path, &'b mut WriteRequester)
-                -> IoResult<()>,
-        >,
-    )>;
+    PathBuf,
+    Box<for<'a> Fn(&'a mut ReadSeek, &'a mut ReadSeek) -> IoResult<bool>>,
+    Box<
+        for<'b> Fn(&'b mut ReadSeek, &'b mut ReadSeek, &'b Path, &'b mut WriteRequester)
+            -> IoResult<()>,
+    >,
+)>;
 
 pub struct Provider {
     #[cfg_attr(not(test), allow(dead_code))]
@@ -120,20 +127,20 @@ impl Provider {
     where
         S: AsRef<Path>,
         C: for<'a> Fn(&'a mut (ReadSeek), &'a mut (ReadSeek)) -> IoResult<bool> + 'static,
-        D: for<'b> Fn(&'b mut (ReadSeek), &'b mut (ReadSeek), &'b Path, &'b mut WriteRequester) -> IoResult<()>
+        D: for<'b> Fn(&'b mut (ReadSeek), &'b mut (ReadSeek), &'b Path, &'b mut WriteRequester)
+                -> IoResult<()>
             + 'static,
     {
         let name: PathBuf = name.as_ref().into();
         let mut lock = self.files.lock().unwrap();
-        lock
-            .push((
-                self.cur_offset.join(name.clone()),
-                Box::new(compare),
-                Box::new(diff)));
-        Writer::new(self.fs.duplicate(), name )
+        lock.push((
+            self.cur_offset.join(name.clone()),
+            Box::new(compare),
+            Box::new(diff),
+        ));
+        Writer::new(self.fs.duplicate(), name)
     }
 }
-
 
 #[test]
 fn writer_does_not_write_to_filesystem_if_not_written_to() {

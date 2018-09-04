@@ -1,5 +1,6 @@
 extern crate expectation_shared;
 extern crate serde_json;
+extern crate marksman_escape;
 
 #[cfg(feature = "text")]
 extern crate diff;
@@ -60,7 +61,7 @@ pub fn expect<F: FnOnce(Provider)>(name: &str, f: F) {
     let mut succeeded = true;
     let results = validate(name, top_fs, provider, file_filter);
 
-    ipc::send(name, &results);
+    ipc::send(name, results.clone());
 
     for result in results {
         match result.kind {
@@ -168,6 +169,7 @@ fn validate<Fi: Fn(&Path) -> bool>(
             let mut write_requester = provider::WriteRequester {
                 fs: diff_fs.duplicate(),
                 files: vec![],
+                html_renderer: None,
             };
 
             let diff_result = actual_fs.read(&file, &mut |actual_read| {
@@ -176,12 +178,21 @@ fn validate<Fi: Fn(&Path) -> bool>(
                 })
             });
 
+            let actual_file = actual_fs.full_path_for(&file);
+            let expected_file = expected_fs.full_path_for(&file);
+            let diff_files = write_requester.files;
+
+            let html = write_requester
+                .html_renderer
+                .map(|f| f(&actual_file, &expected_file, &diff_files));
+
             out.push(EResult::difference(
                 name,
                 &file,
-                actual_fs.full_path_for(&file),
-                expected_fs.full_path_for(&file),
-                write_requester.files,
+                actual_file,
+                expected_file,
+                diff_files,
+                html,
             ));
 
             if let Err(e) = diff_result {
