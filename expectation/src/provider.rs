@@ -44,6 +44,7 @@ pub struct Provider {
     pub(crate) fs: Box<FileSystem>,
     pub(crate) files: Arc<Mutex<Files>>,
     cur_offset: PathBuf,
+    is_diagnostic: bool,
 }
 
 pub struct Writer {
@@ -59,6 +60,7 @@ impl Clone for Provider {
             fs: self.fs.duplicate(),
             files: self.files.clone(),
             cur_offset: self.cur_offset.clone(),
+            is_diagnostic: self.is_diagnostic,
         }
     }
 }
@@ -81,7 +83,14 @@ impl Provider {
             fs: self.fs.duplicate().subsystem(path.as_ref()),
             files: self.files.clone(),
             cur_offset: self.cur_offset.join(path),
+            is_diagnostic: self.is_diagnostic,
         }
+    }
+
+    pub fn diagnostic(&self) -> Provider {
+        let mut new = self.clone();
+        new.is_diagnostic = true;
+        new
     }
 
     pub(crate) fn new(root_fs: Box<FileSystem>, fs: Box<FileSystem>) -> Provider {
@@ -90,6 +99,7 @@ impl Provider {
             fs,
             files: Arc::new(Mutex::new(vec![])),
             cur_offset: PathBuf::new(),
+            is_diagnostic: false,
         }
     }
 
@@ -132,12 +142,14 @@ impl Provider {
             + 'static,
     {
         let name: PathBuf = name.as_ref().into();
-        let mut lock = self.files.lock().unwrap();
-        lock.push((
-            self.cur_offset.join(name.clone()),
-            Box::new(compare),
-            Box::new(diff),
-        ));
+        if !self.is_diagnostic {
+            let mut lock = self.files.lock().unwrap();
+            lock.push((
+                self.cur_offset.join(name.clone()),
+                Box::new(compare),
+                Box::new(diff),
+            ));
+        }
         Writer::new(self.fs.duplicate(), name)
     }
 }

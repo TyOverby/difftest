@@ -44,7 +44,7 @@ impl TextDiffExtension for Provider {
     }
 }
 
-fn text_eq<R1: Read, R2: Read>(mut r1: R1, mut r2: R2) -> IoResult<bool> {
+pub(crate) fn text_eq<R1: Read, R2: Read>(mut r1: R1, mut r2: R2) -> IoResult<bool> {
     let mut v1 = Vec::new();
     let mut v2 = Vec::new();
     r1.read_to_end(&mut v1)?;
@@ -61,7 +61,7 @@ fn add_extension(p: &Path, new_ext: &str) -> PathBuf {
     p.with_extension(format!("{}{}", old_ext, new_ext))
 }
 
-fn text_diff<R1: Read, R2: Read>(
+pub(crate) fn text_diff<R1: Read, R2: Read>(
     mut r1: R1,
     mut r2: R2,
     path: &Path,
@@ -89,13 +89,13 @@ fn text_diff<R1: Read, R2: Read>(
         let mut html = Vec::new();
 
         write!(html, "<h3> Actual </h3>");
-        write!(html, "<code><pre> {} </pre></code>", escape_html(&s1));
+        write!(html, "<code><pre>{}</pre></code>", escape_html(&s1));
 
         write!(html, "<h3> Expected </h3>");
-        write!(html, "<code><pre> {} </pre></code>", escape_html(&s2));
+        write!(html, "<code><pre>{}</pre></code>", escape_html(&s2));
 
         write!(html, "<h3> Diff </h3>");
-        write!(html, "<code><pre> {} </pre></code>", escape_html(&diff));
+        write!(html, "<code><pre>{}</pre></code>", escape_html(&diff));
 
         String::from_utf8(html).unwrap()
     });

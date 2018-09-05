@@ -4,14 +4,34 @@ body {
 }
 
 h2 {
-    padding-left: 30px;
 }
 
 h3 {
-    padding-left: 60px;
 }
 
 pre {
     border: 1px solid rgba(0, 0, 0, 0.5);
     padding: 5px;
+}
+
+.indent {
+    margin-left: 30px;
+}
+
+.test {
+    padding: 5px;
+    margin-top: 10px;
+    border: 1px dashed rgba(24, 82, 7, 0.5)
+}
+.test:hover {
+    border: 1px dashed rgba(24, 82, 7, 1.0)
+}
+
+.file {
+    padding: 5px;
+    margin-top: 10px;
+    border: 1px dashed rgba(17, 10, 78, 0.5)
+}
+.file:hover {
+    border: 1px dashed rgba(17, 10, 78, 1.0)
 }

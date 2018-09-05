@@ -172,7 +172,7 @@ pub fn perform_run(spec: Specifier) -> IoResult<bool> {
     let command = prepare_command(spec, send_ser);
     let done_recvr = process_listen(command)?;
 
-    let total_results = fold_wait(
+    let mut total_results = fold_wait(
         messages,
         done_recvr,
         vec![],
@@ -180,7 +180,7 @@ pub fn perform_run(spec: Specifier) -> IoResult<bool> {
             match message {
                 Message::TestFinished { name, result } => {
                     ::output::print_results(&name, &result, verbose);
-                    total_results.push((name, result));
+                    total_results.push((name, result, true));
                 }
                 _ => unimplemented!(),
             }
@@ -193,7 +193,7 @@ pub fn perform_run(spec: Specifier) -> IoResult<bool> {
     let mut total_files = 0;
     let mut failed_files = 0;
 
-    for (_, results) in &total_results {
+    for (_, results, passed) in &mut total_results {
         total_suites += 1;
         let mut success = true;
         for file in results {
@@ -201,6 +201,7 @@ pub fn perform_run(spec: Specifier) -> IoResult<bool> {
             if !file.is_ok() {
                 failed_files += 1;
                 success = false;
+                *passed = false;
             }
         }
         if !success {

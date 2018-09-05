@@ -3,6 +3,11 @@ mod text;
 #[cfg(feature = "text")]
 pub use self::text::*;
 
+#[cfg(feature = "text")]
+mod svg;
+#[cfg(feature = "text")]
+pub use self::svg::*;
+
 #[cfg(feature = "image")]
 mod image;
 #[cfg(feature = "image")]
